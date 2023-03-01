@@ -497,13 +497,14 @@ along with this software (see the LICENSE.md file). If not, see
         <out-parameters>
             <parameter name="paymentMethodFileId"/>
             <parameter name="fileText"/>
-            <parameter name="output" type="String"/>
         </out-parameters>
         <actions>
 
             <!-- 1. Check that the payment methods that are sent have the same immedDestName and immedOrigName, if not
-            we throw an  error. -->
+                we throw an  error. Also count the number of authorized payments for all the payment methods and if there
+                isn't at least one, abort execution without error -->
             <set field="bankAccountInfoList" from="[]"/>
+            <set field="totalNumberOfPayments" value="0" type="Long"/>
             <iterate list="paymentMethodIdList" entry="paymentMethodId">
                 <entity-find-one entity-name="mantle.account.method.PaymentMethod" value-field="paymentMethod"/>
                 <entity-find-one entity-name="mantle.account.method.BankAccount" value-field="bankAccount"/>
@@ -520,25 +521,57 @@ along with this software (see the LICENSE.md file). If not, see
                 <if condition="!nachaImmedOrigName || nachaImmedOrigName.length() &gt; 23">
                     <message error="true">NACHA Immediate Origin Name field (${nachaImmedOrigName}) on Bank Account must be specified and not more than 23 characters</message></if>
 
-                <if condition="bankAccountInfoList.size() &gt; 0">
+                <if condition="bankAccountInfoList.size() &gt; 2">
                     <if condition="bankAccountInfoList.last().nachaImmedDestName != nachaImmedDestName">
                         <message error="true">Found a mismatch in nachaImmedDestName</message>
                     </if>
                     <if condition="bankAccountInfoList.last().nachaImmedOrigName != nachaImmedOrigName">
                         <message error="true">Found a mismatch in nachaImmedOrigName</message>
                     </if>
-                    <!-- Checks the Message Facade error message list (ec.message.errors) and if
-                    not empty returns with an error, otherwise does nothing. -->
-                    <check-errors/>
+                    <if condition="bankAccountInfoList.last().nachaOdfiId != nachaOdfiId">
+                        <message error="true">Found a mismatch in nachaOdfiId</message>
+                    </if>
                 </if>
+                <!-- if there were any errors added in the above, return with the error messages -->
+                <check-errors/>
 
                 <set field="itemMap" from="[:]"/>
                 <script>
                     itemMap.put('nachaImmedDestName',nachaImmedDestName);
                     itemMap.put('nachaImmedOrigName',nachaImmedOrigName);
+                    itemMap.put('nachaOdfiId',nachaOdfiId);
+                    itemMap.put('bankAccount', bankAccount);
+                    itemMap.put('paymentMethod', paymentMethod);
                     bankAccountInfoList.add(itemMap);
                 </script>
+
+                <!-- find applicable payments (match fromPartyId or toPartyId, and statusId=PmntAuthorized) -->
+                <entity-find-count entity-name="mantle.account.payment.Payment" count-field="count">
+                    <econdition field-name="statusId" value="PmntAuthorized"/>
+                    <econditions combine="or">
+                        <econditions combine="and">
+                            <econdition field-name="fromPartyId" from="paymentMethod.ownerPartyId"/>
+                            <econdition field-name="paymentMethodId"/>
+                            <econdition field-name="toPaymentMethodId" operator="not-equals" from="null"/>
+                        </econditions>
+                        <econditions combine="and">
+                            <econdition field-name="toPartyId" from="paymentMethod.ownerPartyId"/>
+                            <econdition field-name="toPaymentMethodId" from="paymentMethodId"/>
+                            <econdition field-name="paymentMethodId" operator="not-equals" from="null"/>
+                        </econditions>
+                    </econditions>
+                    <econdition field-name="paymentInstrumentEnumId" value="PiAch"/>
+                    <econdition field-name="paymentMethodFileId" from="null"/>
+                    <econdition field-name="effectiveDate" operator="greater-equals" from="fromDate" ignore-if-empty="true"/>
+                    <econdition field-name="effectiveDate" operator="less-equals" from="thruDate"/>
+                    <order-by field-name="effectiveDate"/>
+                </entity-find-count>
+
+                <set field="totalNumberOfPayments" from="totalNumberOfPayments + count"/>
             </iterate>
+            <!-- no payments? return now with a message -->
+            <log level="error" message="totalNumberOfPayments -> ${totalNumberOfPayments}"/>
+            <if condition="totalNumberOfPayments == 0"><return message="No pending ACH payments found for payment method [${paymentMethodId}]"/></if>
 
             <!-- 2. Retrieve the first bank account from the payment method list so that we can have file header fields -->
             <set field="paymentMethodId" from="paymentMethodIdList.getAt(0)"/>
