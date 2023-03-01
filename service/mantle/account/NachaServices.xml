@@ -572,6 +572,15 @@ along with this software (see the LICENSE.md file). If not, see
             <!-- no payments? return now with a message -->
             <if condition="totalNumberOfPayments == 0"><return message="No pending ACH payments found for payment method [${paymentMethodId}]"/></if>
 
+            <!-- count of files sent today for File ID Modifier in File Header char 34 -->
+            <set field="todayRange" from="ec.user.getPeriodRange('day', '0')"/>
+            <entity-find-count entity-name="mantle.account.method.PaymentMethodFile" count-field="fileCount">
+                <econdition field-name="paymentMethodId"/>
+                <econdition field-name="fileDate" operator="greater-equals" from="todayRange[0]"/>
+                <econdition field-name="fileDate" operator="less-equals" from="todayRange[1]"/>
+            </entity-find-count>
+            <if condition="fileCount &gt; 35"><message error="true">More than 35 files not allowed in one day due to NACHA File ID Modifier limits (payment method [${paymentMethodId}]), found ${fileCount}</message></if>
+
             <!-- 2. retrieve the configuration values for the fileHeader from the paymentMethod and bankAccount that
             correspond to the deposit clearing account -->
             <set field="paymentMethod" from="bankAccountInfoList.first().paymentMethod"/>
@@ -592,20 +601,6 @@ along with this software (see the LICENSE.md file). If not, see
             <check-errors/>
             <set field="paymentMethodId" from="paymentMethod.paymentMethodId"/>
 
-            <log message="paymentMethodId -> ${paymentMethodId}" level="error"/>
-            <log message="nachaOdfiId -> ${nachaOdfiId}" level="error"/>
-            <log level="error" message="bankAccount -> ${bankAccount}"/>
-            <log level="error" message="paymentMethodId -> ${paymentMethodId}"/>
-            <log level="error" message="paymentMethod -> ${paymentMethod}"/>
-
-            <!-- count of files sent today for File ID Modifier in File Header char 34 -->
-            <set field="todayRange" from="ec.user.getPeriodRange('day', '0')"/>
-            <entity-find-count entity-name="mantle.account.method.PaymentMethodFile" count-field="fileCount">
-                <econdition field-name="paymentMethodId"/>
-                <econdition field-name="fileDate" operator="greater-equals" from="todayRange[0]"/>
-                <econdition field-name="fileDate" operator="less-equals" from="todayRange[1]"/>
-            </entity-find-count>
-            <if condition="fileCount &gt; 35"><message error="true">More than 35 files not allowed in one day due to NACHA File ID Modifier limits (payment method [${paymentMethodId}]), found ${fileCount}</message></if>
 
             <if condition="!effectiveEntryDate">
                 <!-- FUTURE: support some sort of configuration for the holidays to skip -->
@@ -716,27 +711,6 @@ along with this software (see the LICENSE.md file). If not, see
                     <econdition field-name="effectiveDate" operator="less-equals" from="thruDate"/>
                     <order-by field-name="effectiveDate"/>
                 </entity-find>
-
-                <!-- no payments? return now with a message -->
-                <if condition="!originalPaymentList"><return message="No pending ACH payments found for payment method [${paymentMethodId}]"/></if>
-
-                <!-- count of files sent today for File ID Modifier in File Header char 34 -->
-                <set field="todayRange" from="ec.user.getPeriodRange('day', '0')"/>
-                <entity-find-count entity-name="mantle.account.method.PaymentMethodFile" count-field="fileCount">
-                    <econdition field-name="paymentMethodId"/>
-                    <econdition field-name="fileDate" operator="greater-equals" from="todayRange[0]"/>
-                    <econdition field-name="fileDate" operator="less-equals" from="todayRange[1]"/>
-                </entity-find-count>
-                <if condition="fileCount &gt; 35"><message error="true">More than 35 files not allowed in one day due to NACHA File ID Modifier limits (payment method [${paymentMethodId}]), found ${fileCount}</message></if>
-
-                <!-- count of files sent today for File ID Modifier in File Header char 34 -->
-                <set field="todayRange" from="ec.user.getPeriodRange('day', '0')"/>
-                <entity-find-count entity-name="mantle.account.method.PaymentMethodFile" count-field="fileCount">
-                    <econdition field-name="paymentMethodId"/>
-                    <econdition field-name="fileDate" operator="greater-equals" from="todayRange[0]"/>
-                    <econdition field-name="fileDate" operator="less-equals" from="todayRange[1]"/>
-                </entity-find-count>
-                <if condition="fileCount &gt; 35"><message error="true">More than 35 files not allowed in one day due to NACHA File ID Modifier limits (payment method [${paymentMethodId}]), found ${fileCount}</message></if>
 
                 <!-- Batch Header fields -->
                 <set field="nachaCompanyName" from="bankAccount.nachaCompanyName"/>
@@ -1028,7 +1002,7 @@ along with this software (see the LICENSE.md file). If not, see
                 }
                 // get the String value
                 fileText = ftSb.toString()
-            ]]></script>
+                ]]></script>
 
             <check-errors/>
             <if condition="!paymentList"><return error="true" message="No valid payments found for NACHA file, not generating"/></if>
