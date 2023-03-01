@@ -570,22 +570,30 @@ along with this software (see the LICENSE.md file). If not, see
                 <set field="totalNumberOfPayments" from="totalNumberOfPayments + count"/>
             </iterate>
             <!-- no payments? return now with a message -->
-            <log level="error" message="totalNumberOfPayments -> ${totalNumberOfPayments}"/>
             <if condition="totalNumberOfPayments == 0"><return message="No pending ACH payments found for payment method [${paymentMethodId}]"/></if>
 
             <!-- 2. retrieve the configuration values for the fileHeader from the paymentMethod and bankAccount that
             correspond to the deposit clearing account -->
+            <set field="paymentMethod" from="bankAccountInfoList.first().paymentMethod"/>
+            <set field="bankAccount" from="bankAccountInfoList.first().bankAccount"/>
             <iterate entry="listItem" list="bankAccountInfoList">
                 <if condition="listItem.paymentMethod.purposeEnumId == 'PmpPaymentClearingAccount'">
                     <set field="paymentMethod" from="listItem.paymentMethod"/>
                     <set field="bankAccount" from="listItem.bankAccount"/>
-                    <set field="paymentMethodId" from="listItem.paymentMethod.paymentMethodId"/>
                     <set field="nachaImmedDestName" from="listItem.nachaImmedDestName"/>
                     <set field="nachaImmedOrigName" from="listItem.nachaImmedOrigName"/>
                     <set field="nachaOdfiId" from="listItem.nachaOdfiId"/>
                 </if>
             </iterate>
 
+            <set field="nachaOdfiId" from="bankAccount.nachaOdfiId ?: bankAccount.nachaImmedDest.take(8)"/>
+            <if condition="nachaOdfiId.length() &gt; 8">
+                <message error="true">NACHA Originating DFI ID (${nachaOdfiId}) on Bank Account must not be more than 8 digits</message></if>
+            <check-errors/>
+            <set field="paymentMethodId" from="paymentMethod.paymentMethodId"/>
+
+            <log message="paymentMethodId -> ${paymentMethodId}" level="error"/>
+            <log message="nachaOdfiId -> ${nachaOdfiId}" level="error"/>
             <log level="error" message="bankAccount -> ${bankAccount}"/>
             <log level="error" message="paymentMethodId -> ${paymentMethodId}"/>
             <log level="error" message="paymentMethod -> ${paymentMethod}"/>
@@ -599,32 +607,12 @@ along with this software (see the LICENSE.md file). If not, see
             </entity-find-count>
             <if condition="fileCount &gt; 35"><message error="true">More than 35 files not allowed in one day due to NACHA File ID Modifier limits (payment method [${paymentMethodId}]), found ${fileCount}</message></if>
 
-            <!-- set/check some configuration values -->
-
-            <!-- File Header fields (TODO: probably need to remove this as it could be done in verification process) -->
-            <if condition="!bankAccount.nachaImmedDest || bankAccount.nachaImmedDest.length() &lt; 9 || bankAccount.nachaImmedDest.length() &gt; 10">
-                <message error="true">NACHA Immediate Destination field (${bankAccount.nachaImmedDest}) on Bank Account must be 9 or 10 characters</message></if>
-            <if condition="!bankAccount.nachaImmedOrig || bankAccount.nachaImmedOrig.length() &lt; 9 || bankAccount.nachaImmedOrig.length() &gt; 10">
-                <message error="true">NACHA Immediate Origin field (${bankAccount.nachaImmedOrig}) on Bank Account must be 9 or 10 characters</message></if>
-            <set field="nachaImmedDestName" from="bankAccount.nachaImmedDestName ?: bankAccount.bankName"/>
-            <if condition="!nachaImmedDestName || nachaImmedDestName.length() &gt; 23">
-                <message error="true">NACHA Immediate Destination Name field (${nachaImmedDestName}) on Bank Account must be specified and not more than 23 characters</message></if>
-            <set field="nachaImmedOrigName" from="bankAccount.nachaImmedOrigName ?: paymentMethod.companyNameOnAccount"/>
-            <if condition="!nachaImmedOrigName || nachaImmedOrigName.length() &gt; 23">
-                <message error="true">NACHA Immediate Origin Name field (${nachaImmedOrigName}) on Bank Account must be specified and not more than 23 characters</message></if>
-            <set field="nachaOdfiId" from="bankAccount.nachaOdfiId ?: bankAccount.nachaImmedDest.take(8)"/>
-            <if condition="nachaOdfiId.length() &gt; 8">
-                <message error="true">NACHA Originating DFI ID (${nachaOdfiId}) on Bank Account must not be more than 8 digits</message></if>
-
             <if condition="!effectiveEntryDate">
                 <!-- FUTURE: support some sort of configuration for the holidays to skip -->
                 <service-call name="mantle.work.EventServices.get#NextBusinessDay" out-map="nextDayOut"
                               in-map="[startDate:fileDate, workEffortCategoryIds:['HolidayUsaBank']]"/>
                 <set field="effectiveEntryDate" from="nextDayOut.nextDayDate"/>
             </if>
-
-<!--            TODO: maybe remove this as well since it's in verificaiton process-->
-            <check-errors/>
 
             <!-- create a PaymentMethodFile record, get the paymentMethodFileId (used in the file) -->
             <service-call name="create#mantle.account.method.PaymentMethodFile" in-map="context" out-map="context"/>
