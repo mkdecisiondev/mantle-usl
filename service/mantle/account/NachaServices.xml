@@ -573,12 +573,22 @@ along with this software (see the LICENSE.md file). If not, see
             <log level="error" message="totalNumberOfPayments -> ${totalNumberOfPayments}"/>
             <if condition="totalNumberOfPayments == 0"><return message="No pending ACH payments found for payment method [${paymentMethodId}]"/></if>
 
-            <!-- 2. Retrieve the first bank account from the payment method list so that we can have file header fields -->
-            <set field="paymentMethodId" from="paymentMethodIdList.getAt(0)"/>
-            <entity-find-one entity-name="mantle.account.method.PaymentMethod" value-field="paymentMethod">
-                <field-map field-name="paymentMethodId"/>
-            </entity-find-one>
-            <entity-find-one entity-name="mantle.account.method.BankAccount" value-field="bankAccount"/>
+            <!-- 2. retrieve the configuration values for the fileHeader from the paymentMethod and bankAccount that
+            correspond to the deposit clearing account -->
+            <iterate entry="listItem" list="bankAccountInfoList">
+                <if condition="listItem.paymentMethod.purposeEnumId == 'PmpPaymentClearingAccount'">
+                    <set field="paymentMethod" from="listItem.paymentMethod"/>
+                    <set field="bankAccount" from="listItem.bankAccount"/>
+                    <set field="paymentMethodId" from="listItem.paymentMethod.paymentMethodId"/>
+                    <set field="nachaImmedDestName" from="listItem.nachaImmedDestName"/>
+                    <set field="nachaImmedOrigName" from="listItem.nachaImmedOrigName"/>
+                    <set field="nachaOdfiId" from="listItem.nachaOdfiId"/>
+                </if>
+            </iterate>
+
+            <log level="error" message="bankAccount -> ${bankAccount}"/>
+            <log level="error" message="paymentMethodId -> ${paymentMethodId}"/>
+            <log level="error" message="paymentMethod -> ${paymentMethod}"/>
 
             <!-- count of files sent today for File ID Modifier in File Header char 34 -->
             <set field="todayRange" from="ec.user.getPeriodRange('day', '0')"/>
