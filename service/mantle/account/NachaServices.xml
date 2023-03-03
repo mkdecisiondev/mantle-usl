@@ -499,10 +499,7 @@ along with this software (see the LICENSE.md file). If not, see
             <parameter name="fileText"/>
         </out-parameters>
         <actions>
-
-            <!-- 1. Check that the payment methods that are sent have the same immedDestName and immedOrigName, if not
-                we throw an  error. Also count the number of authorized payments for all the payment methods and if there
-                isn't at least one, abort execution without error -->
+            <!-- check that all the payment methods that are sent have the same immedDestName and immedOrigName, if not we throw an  error. -->
             <set field="bankAccountInfoList" from="[]"/>
             <set field="totalNumberOfPayments" value="0" type="Long"/>
             <iterate list="paymentMethodIdList" entry="paymentMethodId">
@@ -510,7 +507,7 @@ along with this software (see the LICENSE.md file). If not, see
                 <entity-find-one entity-name="mantle.account.method.BankAccount" value-field="bankAccount"/>
                 <if condition="bankAccount == null"><return error="true" message="Payment method ${paymentMethodId} is not a bank account"/></if>
 
-                <!-- File Header fields -->
+                <!-- verify that File Header fields are correct -->
                 <if condition="!bankAccount.nachaImmedDest || bankAccount.nachaImmedDest.length() &lt; 9 || bankAccount.nachaImmedDest.length() &gt; 10">
                     <message error="true">NACHA Immediate Destination field (${bankAccount.nachaImmedDest}) on Bank Account must be 9 or 10 characters</message></if>
                 <if condition="!bankAccount.nachaImmedOrig || bankAccount.nachaImmedOrig.length() &lt; 9 || bankAccount.nachaImmedOrig.length() &gt; 10">
@@ -522,27 +519,41 @@ along with this software (see the LICENSE.md file). If not, see
                 <if condition="!nachaImmedOrigName || nachaImmedOrigName.length() &gt; 23">
                     <message error="true">NACHA Immediate Origin Name field (${nachaImmedOrigName}) on Bank Account must be specified and not more than 23 characters</message></if>
 
-                <if condition="bankAccountInfoList.size() &gt; 2">
-                    <if condition="bankAccountInfoList.last().nachaImmedDestName != nachaImmedDestName">
-                        <message error="true">Found a mismatch in nachaImmedDestName</message>
+                <!-- verify that addOffsetRecord is 'Y' for all bank accounts -->
+                <if condition="bankAccount?.nachaAddOffsetRecord != 'Y'">
+                    <message error="true">NACHA Add Offset Record field on Bank Account must be 'Y' when doing multiple Payment Methods (found: ${bankAccount?.nachaAddOffsetRecord})</message></if>
+
+                <!-- if there is more than one bank account verify that they have the same nachaImmedDest and nachaImmedOrig fields -->
+                <if condition="bankAccountInfoList.size() &gt; 0">
+                    <if condition="bankAccountInfoList.last().bankAccount.nachaImmedDest != bankAccount.nachaImmedDest">
+                        <message error="true">Found a mismatch in nachaImmedDest field</message>
                     </if>
-                    <if condition="bankAccountInfoList.last().nachaImmedOrigName != nachaImmedOrigName">
-                        <message error="true">Found a mismatch in nachaImmedOrigName</message>
+                    <if condition="bankAccountInfoList.last().bankAccount.nachaImmedOrig != bankAccount.nachaImmedOrig">
+                        <message error="true">Found a mismatch in nachaImmedOrig field</message>
+                    </if>
+                    <if condition="bankAccountInfoList.last().bankAccount.nachaImmedDestName != bankAccount.nachaImmedDestName">
+                        <message error="true">Found a mismatch in nachaImmedDestName field</message>
+                    </if>
+                    <if condition="bankAccountInfoList.last().bankAccount.nachaImmedOrigName != bankAccount.nachaImmedOrigName">
+                        <message error="true">Found a mismatch in nachaImmedOrigName field</message>
+                    </if>
+                    <if condition="bankAccountInfoList.last().bankAccount.nachaAddNewLine != bankAccount.nachaAddNewLine">
+                        <message error="true">Found a mismatch in nachaAddNewLine field (${bankAccountInfoList.last().bankAccount.nachaAddNewLine}, ${bankAccount.nachaAddNewLine})</message>
                     </if>
                 </if>
+
                 <!-- if there were any errors added in the above, return with the error messages -->
                 <check-errors/>
 
+                <!-- save the bankAccount and paymentMethod associated to current paymentMethodId to verify it's the same with the next one -->
                 <set field="itemMap" from="[:]"/>
                 <script>
-                    itemMap.put('nachaImmedDestName',nachaImmedDestName);
-                    itemMap.put('nachaImmedOrigName',nachaImmedOrigName);
                     itemMap.put('bankAccount', bankAccount);
                     itemMap.put('paymentMethod', paymentMethod);
                     bankAccountInfoList.add(itemMap);
                 </script>
 
-                <!-- find applicable payments (match fromPartyId or toPartyId, and statusId=PmntAuthorized) -->
+                <!-- count the applicable payments (match fromPartyId or toPartyId, and statusId=PmntAuthorized) -->
                 <entity-find-count entity-name="mantle.account.payment.Payment" count-field="count">
                     <econdition field-name="statusId" value="PmntAuthorized"/>
                     <econditions combine="or">
@@ -578,20 +589,20 @@ along with this software (see the LICENSE.md file). If not, see
             </entity-find-count>
             <if condition="fileCount &gt; 35"><message error="true">More than 35 files not allowed in one day due to NACHA File ID Modifier limits (payment method [${paymentMethodId}]), found ${fileCount}</message></if>
 
-            <!-- 2. retrieve the configuration values for the fileHeader from the paymentMethod and bankAccount that
-            correspond to the deposit clearing account -->
+            <!-- TODO: this might not be necessary but it won't hurt at the moment.
+            retrieve the configuration values for the fileHeader from the paymentMethod and bankAccount that
+            correspond to the deposit clearing account. -->
             <set field="paymentMethod" from="bankAccountInfoList.first().paymentMethod"/>
             <set field="bankAccount" from="bankAccountInfoList.first().bankAccount"/>
             <iterate entry="listItem" list="bankAccountInfoList">
                 <if condition="listItem.paymentMethod.purposeEnumId == 'PmpPaymentClearingAccount'">
                     <set field="paymentMethod" from="listItem.paymentMethod"/>
                     <set field="bankAccount" from="listItem.bankAccount"/>
-                    <set field="nachaImmedDestName" from="listItem.nachaImmedDestName"/>
-                    <set field="nachaImmedOrigName" from="listItem.nachaImmedOrigName"/>
+                    <set field="nachaImmedDestName" from="listItem.bankAccount.nachaImmedDestName"/>
+                    <set field="nachaImmedOrigName" from="listItem.bankAccount.nachaImmedOrigName"/>
                 </if>
             </iterate>
             <set field="paymentMethodId" from="paymentMethod.paymentMethodId"/>
-            <log level="the primary paymentMethodId -> ${paymentMethodId}"/>
 
             <if condition="!effectiveEntryDate">
                 <!-- FUTURE: support some sort of configuration for the holidays to skip -->
@@ -603,7 +614,7 @@ along with this software (see the LICENSE.md file). If not, see
             <!-- create a PaymentMethodFile record, get the paymentMethodFileId (used in the file) -->
             <service-call name="create#mantle.account.method.PaymentMethodFile" in-map="context" out-map="context"/>
 
-            <!-- global level variables that need to be put in the file header and file control sections of the file -->
+            <!-- File Header: these fields need to be put in the file header and file control sections of the NACHA file -->
             <set field="lines" from="[]"/>
             <set field="paymentList" from="[]"/>
             <set field="debitAmountTotal" type="BigDecimal" value="0.0"/>
@@ -613,7 +624,7 @@ along with this software (see the LICENSE.md file). If not, see
             <set field="debitAmountTotalStr" type="String"/>
             <set field="creditAmountTotalStr" type="String"/>
 
-            <!-- this script generates the file header of the NACHA file -->
+            <!-- script to generate the file header of the NACHA file (see File Header comment)-->
             <script><![CDATA[
                 import org.moqui.context.ExecutionContext
                 import org.moqui.entity.EntityValue
@@ -662,7 +673,7 @@ along with this software (see the LICENSE.md file). If not, see
 
                 ]]></script>
 
-            <!-- Go through each payment of the paymentMethods in the list and generate batch sections in the NACHA file -->
+            <!-- go through each payment of the paymentMethods in the list and generate batch sections in the NACHA file -->
             <iterate list="paymentMethodIdList" entry="paymentMethodId">
                 <entity-find-one entity-name="mantle.account.method.PaymentMethod" value-field="paymentMethod"/>
                 <entity-find-one entity-name="mantle.account.method.BankAccount" value-field="bankAccount"/>
@@ -699,11 +710,10 @@ along with this software (see the LICENSE.md file). If not, see
                     <order-by field-name="effectiveDate"/>
                 </entity-find>
 
-                <!-- Batch Header fields -->
+                <!-- Batch Header: these fields need to be put in the batch header or batch control sections of the NACHA file -->
                 <set field="nachaOdfiId" from="bankAccount.nachaOdfiId ?: bankAccount.nachaImmedDest.take(8)"/>
                 <if condition="nachaOdfiId.length() &gt; 8">
                     <message error="true">NACHA Originating DFI ID (${nachaOdfiId}) on Bank Account must not be more than 8 digits</message></if>
-
                 <set field="nachaCompanyName" from="bankAccount.nachaCompanyName"/>
                 <if condition="!nachaCompanyName">
                     <set field="nachaCompanyName" from="paymentMethod.companyNameOnAccount"/>
@@ -711,20 +721,18 @@ along with this software (see the LICENSE.md file). If not, see
                 </if>
                 <if condition="!nachaCompanyName || nachaCompanyName.length() &gt; 16">
                     <message error="true">NACHA Company Name field (${nachaCompanyName}) on Bank Account must be specified and not more than 16 characters</message></if>
-
                 <set field="nachaDiscrData" from="bankAccount.nachaDiscrData ?: ''"/>
                 <if condition="nachaDiscrData.length() &gt; 20">
                     <message error="true">NACHA Discretionary Data field (${nachaDiscrData}) on Bank Account must not be more than 20 characters</message></if>
                 <if condition="!bankAccount.nachaCompanyId || bankAccount.nachaCompanyId.length() &gt; 10">
                     <message error="true">NACHA Company ID field (${bankAccount.nachaCompanyId}) on Bank Account must be specified and not more than 10 characters</message></if>
-
                 <set field="batchNachaEntryDescription" from="nachaEntryDescription ?: bankAccount.nachaEntryDescription"/>
                 <if condition="!batchNachaEntryDescription || batchNachaEntryDescription.length() &gt; 10">
                     <message error="true">NACHA Entry Description field (${batchNachaEntryDescription}) on Bank Account or service parameter must be specified and not more than 10 characters</message></if>
 
                 <check-errors/>
 
-                <!-- generate the NACHA Batch for paymentMethodId -->
+                <!-- script to generate the batch header and control for the current paymentMethodId (see Batch Header comment)-->
                 <script><![CDATA[
 
                     // Batch Header (5)
@@ -966,13 +974,14 @@ along with this software (see the LICENSE.md file). If not, see
 
                     ]]></script>
 
-                <!-- set these fields back to null so that they can be updated with the correct bankAccount information -->
+                <!-- set these fields back to null so that they can be updated with the correct bankAccount options selected
+                TODO: this may not be necessary if we want to enforce this configurations to be the same for all bank accounts-->
                 <set field="batchNachaEntryDescription" from="null"/>
                 <set field="addOffsetRecord" from="null"/>
                 <set field="addNewLine" from="null"/>
-
             </iterate>
 
+            <!-- script to generate the file control or footer of the NACHA file (see File Header comment) -->
             <script><![CDATA[
                 // File Control (9)
                 StringBuilder fileControl = new StringBuilder()
