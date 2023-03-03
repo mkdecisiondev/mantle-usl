@@ -508,6 +508,7 @@ along with this software (see the LICENSE.md file). If not, see
             <iterate list="paymentMethodIdList" entry="paymentMethodId">
                 <entity-find-one entity-name="mantle.account.method.PaymentMethod" value-field="paymentMethod"/>
                 <entity-find-one entity-name="mantle.account.method.BankAccount" value-field="bankAccount"/>
+                <if condition="bankAccount == null"><return error="true" message="Payment method ${paymentMethodId} is not a bank account"/></if>
 
                 <!-- File Header fields -->
                 <if condition="!bankAccount.nachaImmedDest || bankAccount.nachaImmedDest.length() &lt; 9 || bankAccount.nachaImmedDest.length() &gt; 10">
@@ -528,9 +529,6 @@ along with this software (see the LICENSE.md file). If not, see
                     <if condition="bankAccountInfoList.last().nachaImmedOrigName != nachaImmedOrigName">
                         <message error="true">Found a mismatch in nachaImmedOrigName</message>
                     </if>
-                    <if condition="bankAccountInfoList.last().nachaOdfiId != nachaOdfiId">
-                        <message error="true">Found a mismatch in nachaOdfiId</message>
-                    </if>
                 </if>
                 <!-- if there were any errors added in the above, return with the error messages -->
                 <check-errors/>
@@ -539,7 +537,6 @@ along with this software (see the LICENSE.md file). If not, see
                 <script>
                     itemMap.put('nachaImmedDestName',nachaImmedDestName);
                     itemMap.put('nachaImmedOrigName',nachaImmedOrigName);
-                    itemMap.put('nachaOdfiId',nachaOdfiId);
                     itemMap.put('bankAccount', bankAccount);
                     itemMap.put('paymentMethod', paymentMethod);
                     bankAccountInfoList.add(itemMap);
@@ -591,16 +588,10 @@ along with this software (see the LICENSE.md file). If not, see
                     <set field="bankAccount" from="listItem.bankAccount"/>
                     <set field="nachaImmedDestName" from="listItem.nachaImmedDestName"/>
                     <set field="nachaImmedOrigName" from="listItem.nachaImmedOrigName"/>
-                    <set field="nachaOdfiId" from="listItem.nachaOdfiId"/>
                 </if>
             </iterate>
-
-            <set field="nachaOdfiId" from="bankAccount.nachaOdfiId ?: bankAccount.nachaImmedDest.take(8)"/>
-            <if condition="nachaOdfiId.length() &gt; 8">
-                <message error="true">NACHA Originating DFI ID (${nachaOdfiId}) on Bank Account must not be more than 8 digits</message></if>
-            <check-errors/>
             <set field="paymentMethodId" from="paymentMethod.paymentMethodId"/>
-
+            <log level="the primary paymentMethodId -> ${paymentMethodId}"/>
 
             <if condition="!effectiveEntryDate">
                 <!-- FUTURE: support some sort of configuration for the holidays to skip -->
@@ -673,15 +664,11 @@ along with this software (see the LICENSE.md file). If not, see
 
             <!-- Go through each payment of the paymentMethods in the list and generate batch sections in the NACHA file -->
             <iterate list="paymentMethodIdList" entry="paymentMethodId">
-
                 <entity-find-one entity-name="mantle.account.method.PaymentMethod" value-field="paymentMethod"/>
                 <entity-find-one entity-name="mantle.account.method.BankAccount" value-field="bankAccount"/>
 
-                <if condition="bankAccount == null"><return error="true" message="Payment method ${paymentMethodId} is not a bank account"/></if>
-
                 <if condition="addNewLine == null"><set field="addNewLine" from="!'N'.equals(bankAccount.nachaAddNewLine)"/></if>
                 <if condition="addOffsetRecord == null"><set field="addOffsetRecord" from="'Y'.equals(bankAccount.nachaAddOffsetRecord)"/></if>
-
                 <if condition="addOffsetRecord">
                     <!-- if adding offset record check bankAccount's routingNumber and accountNumber -->
                     <if condition="!bankAccount.accountNumber">
@@ -713,6 +700,10 @@ along with this software (see the LICENSE.md file). If not, see
                 </entity-find>
 
                 <!-- Batch Header fields -->
+                <set field="nachaOdfiId" from="bankAccount.nachaOdfiId ?: bankAccount.nachaImmedDest.take(8)"/>
+                <if condition="nachaOdfiId.length() &gt; 8">
+                    <message error="true">NACHA Originating DFI ID (${nachaOdfiId}) on Bank Account must not be more than 8 digits</message></if>
+
                 <set field="nachaCompanyName" from="bankAccount.nachaCompanyName"/>
                 <if condition="!nachaCompanyName">
                     <set field="nachaCompanyName" from="paymentMethod.companyNameOnAccount"/>
@@ -720,14 +711,16 @@ along with this software (see the LICENSE.md file). If not, see
                 </if>
                 <if condition="!nachaCompanyName || nachaCompanyName.length() &gt; 16">
                     <message error="true">NACHA Company Name field (${nachaCompanyName}) on Bank Account must be specified and not more than 16 characters</message></if>
+
                 <set field="nachaDiscrData" from="bankAccount.nachaDiscrData ?: ''"/>
                 <if condition="nachaDiscrData.length() &gt; 20">
                     <message error="true">NACHA Discretionary Data field (${nachaDiscrData}) on Bank Account must not be more than 20 characters</message></if>
                 <if condition="!bankAccount.nachaCompanyId || bankAccount.nachaCompanyId.length() &gt; 10">
                     <message error="true">NACHA Company ID field (${bankAccount.nachaCompanyId}) on Bank Account must be specified and not more than 10 characters</message></if>
-                <set field="nachaEntryDescription" from="nachaEntryDescription ?: bankAccount.nachaEntryDescription"/>
-                <if condition="!nachaEntryDescription || nachaEntryDescription.length() &gt; 10">
-                    <message error="true">NACHA Entry Description field (${nachaEntryDescription}) on Bank Account or service parameter must be specified and not more than 10 characters</message></if>
+
+                <set field="batchNachaEntryDescription" from="nachaEntryDescription ?: bankAccount.nachaEntryDescription"/>
+                <if condition="!batchNachaEntryDescription || batchNachaEntryDescription.length() &gt; 10">
+                    <message error="true">NACHA Entry Description field (${batchNachaEntryDescription}) on Bank Account or service parameter must be specified and not more than 10 characters</message></if>
 
                 <check-errors/>
 
@@ -748,7 +741,7 @@ along with this software (see the LICENSE.md file). If not, see
                     // 51-53: Standard Entry Class Code: always use PPD (Prearranged Payment and Deposit) for now, future consider support for CCD, TEL, WEB, etc
                     batchHeader.append("PPD")
                     // 54-63: Company Entry Description (for receiver's bank account, 10 chars)
-                    batchHeader.append(nachaEntryDescription.toUpperCase().padRight(10, ' '))
+                    batchHeader.append(batchNachaEntryDescription.toUpperCase().padRight(10, ' '))
                     // 64-69: Company Descriptive Date (6 chars); note that this is informational and optional
                     batchHeader.append(ec.l10n.format(fileDate, "MMM dd").toUpperCase())
                     // 70-75: Effective Entry Date (estimated settlement date, 1 business day later; 6 chars at yyMMdd)
@@ -772,6 +765,8 @@ along with this software (see the LICENSE.md file). If not, see
 
                         // Get PaymentMethod and BankAccount; use toPaymentMethodId if outgoing
                         boolean outgoing = payment.fromPartyId == paymentMethod.ownerPartyId
+                        ec.logger.error("outgoing -> ${outgoing}")
+
                         // NOTE: no type on pmtPaymentMethodId to put in ec.context so available for ec.resource.expand()
                         pmtPaymentMethodId = outgoing ? payment.toPaymentMethodId : payment.paymentMethodId
                         EntityValue pmtPaymentMethod = ec.entity.find("mantle.account.method.PaymentMethod")
@@ -792,6 +787,8 @@ along with this software (see the LICENSE.md file). If not, see
                         String routingCheckDigit = getRoutingCheckDigit(routingNumber)
                         // add first 8 digits of routingNumber to routingNumberSum
                         routingNumberSum += (routingNumber.substring(0, 8) as long)
+                        ec.logger.error("routingNumberSum -> ${routingNumberSum}")
+
 
                         // check/trim the account number
                         String accountNumber = pmtBankAccount.accountNumber
@@ -813,6 +810,9 @@ along with this software (see the LICENSE.md file). If not, see
                         }
                         // add to debitAmountTotal or creditAmountTotal
                         if (outgoing) creditAmountTotal += payment.amount else debitAmountTotal += payment.amount
+
+                        ec.logger.error("creditAmountTotal -> ${creditAmountTotal}")
+                        ec.logger.error("debitAmountTotal -> ${debitAmountTotal}")
 
                         // look up other party PartyDetail
                         String otherPartyId = payment.fromPartyId == paymentMethod.ownerPartyId ? payment.toPartyId : payment.fromPartyId
@@ -867,6 +867,7 @@ along with this software (see the LICENSE.md file). If not, see
                         entry.append((entryCount as String).padLeft(7, '0'))
 
                         lines.add(entry)
+                        ec.logger.error("entry -> ${entry}")
 
                         // FUTURE: Addenda (7) with ANSI ASC X12.4, X12.85, or other data
                     }
@@ -882,6 +883,7 @@ along with this software (see the LICENSE.md file). If not, see
                         if (accountNumber.length() > 17) accountNumber = accountNumber.substring(0, 17)
 
                         BigDecimal netCredit = creditAmountTotal - debitAmountTotal
+                        ec.logger.error("creditAmountTotal - debitAmountTotal-> ${creditAmountTotal} - ${debitAmountTotal} = ${netCredit}")
 
                         if (netCredit != 0.0) {
                             // NOTE: if isNetDebit then we create a credit offset, otherwise we create a debit offset
@@ -963,6 +965,12 @@ along with this software (see the LICENSE.md file). If not, see
                     lines.add(batchControl)
 
                     ]]></script>
+
+                <!-- set these fields back to null so that they can be updated with the correct bankAccount information -->
+                <set field="batchNachaEntryDescription" from="null"/>
+                <set field="addOffsetRecord" from="null"/>
+                <set field="addNewLine" from="null"/>
+
             </iterate>
 
             <script><![CDATA[
