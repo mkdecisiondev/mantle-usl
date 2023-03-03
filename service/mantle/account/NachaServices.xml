@@ -499,8 +499,9 @@ along with this software (see the LICENSE.md file). If not, see
             <parameter name="fileText"/>
         </out-parameters>
         <actions>
-            <!-- check that all the payment methods that are sent have the same immedDestName and immedOrigName, if not we throw an  error. -->
-            <set field="bankAccountInfoList" from="[]"/>
+            <!-- check that all the payment methods that are sent have the same immedDestName and immedOrigName, as well
+            as a bank account associated to them, otherwise we throw an error. -->
+            <set field="paymentMethodWithAccountList" from="[]"/>
             <set field="totalNumberOfPayments" value="0" type="Long"/>
             <iterate list="paymentMethodIdList" entry="paymentMethodId">
                 <entity-find-one entity-name="mantle.account.method.PaymentMethod" value-field="paymentMethod"/>
@@ -524,21 +525,21 @@ along with this software (see the LICENSE.md file). If not, see
                     <message error="true">NACHA Add Offset Record field on Bank Account must be 'Y' when doing multiple Payment Methods (found: ${bankAccount?.nachaAddOffsetRecord})</message></if>
 
                 <!-- if there is more than one bank account verify that they have the same nachaImmedDest and nachaImmedOrig fields -->
-                <if condition="bankAccountInfoList.size() &gt; 0">
-                    <if condition="bankAccountInfoList.last().bankAccount.nachaImmedDest != bankAccount.nachaImmedDest">
+                <if condition="paymentMethodWithAccountList.size() &gt; 0">
+                    <if condition="paymentMethodWithAccountList.last().bankAccount.nachaImmedDest != bankAccount.nachaImmedDest">
                         <message error="true">Found a mismatch in nachaImmedDest field</message>
                     </if>
-                    <if condition="bankAccountInfoList.last().bankAccount.nachaImmedOrig != bankAccount.nachaImmedOrig">
+                    <if condition="paymentMethodWithAccountList.last().bankAccount.nachaImmedOrig != bankAccount.nachaImmedOrig">
                         <message error="true">Found a mismatch in nachaImmedOrig field</message>
                     </if>
-                    <if condition="bankAccountInfoList.last().bankAccount.nachaImmedDestName != bankAccount.nachaImmedDestName">
+                    <if condition="paymentMethodWithAccountList.last().bankAccount.nachaImmedDestName != bankAccount.nachaImmedDestName">
                         <message error="true">Found a mismatch in nachaImmedDestName field</message>
                     </if>
-                    <if condition="bankAccountInfoList.last().bankAccount.nachaImmedOrigName != bankAccount.nachaImmedOrigName">
+                    <if condition="paymentMethodWithAccountList.last().bankAccount.nachaImmedOrigName != bankAccount.nachaImmedOrigName">
                         <message error="true">Found a mismatch in nachaImmedOrigName field</message>
                     </if>
-                    <if condition="bankAccountInfoList.last().bankAccount.nachaAddNewLine != bankAccount.nachaAddNewLine">
-                        <message error="true">Found a mismatch in nachaAddNewLine field (${bankAccountInfoList.last().bankAccount.nachaAddNewLine}, ${bankAccount.nachaAddNewLine})</message>
+                    <if condition="paymentMethodWithAccountList.last().bankAccount.nachaAddNewLine != bankAccount.nachaAddNewLine">
+                        <message error="true">Found a mismatch in nachaAddNewLine field (${paymentMethodWithAccountList.last().bankAccount.nachaAddNewLine}, ${bankAccount.nachaAddNewLine})</message>
                     </if>
                 </if>
 
@@ -550,7 +551,7 @@ along with this software (see the LICENSE.md file). If not, see
                 <script>
                     itemMap.put('bankAccount', bankAccount);
                     itemMap.put('paymentMethod', paymentMethod);
-                    bankAccountInfoList.add(itemMap);
+                    paymentMethodWithAccountList.add(itemMap);
                 </script>
 
                 <!-- count the applicable payments (match fromPartyId or toPartyId, and statusId=PmntAuthorized) -->
@@ -589,21 +590,6 @@ along with this software (see the LICENSE.md file). If not, see
             </entity-find-count>
             <if condition="fileCount &gt; 35"><message error="true">More than 35 files not allowed in one day due to NACHA File ID Modifier limits (payment method [${paymentMethodId}]), found ${fileCount}</message></if>
 
-            <!-- TODO: this might not be necessary but it won't hurt at the moment.
-            retrieve the configuration values for the fileHeader from the paymentMethod and bankAccount that
-            correspond to the deposit clearing account. -->
-            <set field="paymentMethod" from="bankAccountInfoList.first().paymentMethod"/>
-            <set field="bankAccount" from="bankAccountInfoList.first().bankAccount"/>
-            <iterate entry="listItem" list="bankAccountInfoList">
-                <if condition="listItem.paymentMethod.purposeEnumId == 'PmpPaymentClearingAccount'">
-                    <set field="paymentMethod" from="listItem.paymentMethod"/>
-                    <set field="bankAccount" from="listItem.bankAccount"/>
-                    <set field="nachaImmedDestName" from="listItem.bankAccount.nachaImmedDestName"/>
-                    <set field="nachaImmedOrigName" from="listItem.bankAccount.nachaImmedOrigName"/>
-                </if>
-            </iterate>
-            <set field="paymentMethodId" from="paymentMethod.paymentMethodId"/>
-
             <if condition="!effectiveEntryDate">
                 <!-- FUTURE: support some sort of configuration for the holidays to skip -->
                 <service-call name="mantle.work.EventServices.get#NextBusinessDay" out-map="nextDayOut"
@@ -611,7 +597,20 @@ along with this software (see the LICENSE.md file). If not, see
                 <set field="effectiveEntryDate" from="nextDayOut.nextDayDate"/>
             </if>
 
-            <!-- create a PaymentMethodFile record, get the paymentMethodFileId (used in the file) -->
+            <!-- retrieve the paymentMethod and bankAccount that correspond to the deposit clearing account, we need to
+             have the PaymentMethodFile that is created correspond to the deposit clearing account for it to show up
+              in the vendor dashboard -->
+            <iterate entry="paymentMethodWithAccount" list="paymentMethodWithAccountList">
+                <if condition="paymentMethodWithAccount.paymentMethod.purposeEnumId == 'PmpPaymentClearingAccount'">
+                    <set field="paymentMethod" from="paymentMethodWithAccount.paymentMethod"/>
+                    <set field="bankAccount" from="paymentMethodWithAccount.bankAccount"/>
+                    <set field="nachaImmedDestName" from="paymentMethodWithAccount.bankAccount.nachaImmedDestName"/>
+                    <set field="nachaImmedOrigName" from="paymentMethodWithAccount.bankAccount.nachaImmedOrigName"/>
+                </if>
+            </iterate>
+            <set field="paymentMethodId" from="paymentMethod.paymentMethodId"/>
+            <!-- create a PaymentMethodFile record using the deposit clearing account paymentMethodId.
+            The paymentMethodFileId is added to the context with this call (used in the nacha file written out) -->
             <service-call name="create#mantle.account.method.PaymentMethodFile" in-map="context" out-map="context"/>
 
             <!-- File Header: these fields need to be put in the file header and file control sections of the NACHA file -->
