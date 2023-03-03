@@ -772,7 +772,6 @@ along with this software (see the LICENSE.md file). If not, see
 
                         // Get PaymentMethod and BankAccount; use toPaymentMethodId if outgoing
                         boolean outgoing = payment.fromPartyId == paymentMethod.ownerPartyId
-                        ec.logger.error("outgoing -> ${outgoing}")
 
                         // NOTE: no type on pmtPaymentMethodId to put in ec.context so available for ec.resource.expand()
                         pmtPaymentMethodId = outgoing ? payment.toPaymentMethodId : payment.paymentMethodId
@@ -794,8 +793,6 @@ along with this software (see the LICENSE.md file). If not, see
                         String routingCheckDigit = getRoutingCheckDigit(routingNumber)
                         // add first 8 digits of routingNumber to routingNumberSum
                         routingNumberSum += (routingNumber.substring(0, 8) as long)
-                        ec.logger.error("routingNumberSum -> ${routingNumberSum}")
-
 
                         // check/trim the account number
                         String accountNumber = pmtBankAccount.accountNumber
@@ -817,9 +814,6 @@ along with this software (see the LICENSE.md file). If not, see
                         }
                         // add to debitAmountTotal or creditAmountTotal
                         if (outgoing) creditAmountTotal += payment.amount else debitAmountTotal += payment.amount
-
-                        ec.logger.error("creditAmountTotal -> ${creditAmountTotal}")
-                        ec.logger.error("debitAmountTotal -> ${debitAmountTotal}")
 
                         // look up other party PartyDetail
                         String otherPartyId = payment.fromPartyId == paymentMethod.ownerPartyId ? payment.toPartyId : payment.fromPartyId
@@ -874,8 +868,6 @@ along with this software (see the LICENSE.md file). If not, see
                         entry.append((entryCount as String).padLeft(7, '0'))
 
                         lines.add(entry)
-                        ec.logger.error("entry -> ${entry}")
-
                         // FUTURE: Addenda (7) with ANSI ASC X12.4, X12.85, or other data
                     }
 
@@ -890,8 +882,6 @@ along with this software (see the LICENSE.md file). If not, see
                         if (accountNumber.length() > 17) accountNumber = accountNumber.substring(0, 17)
 
                         BigDecimal netCredit = creditAmountTotal - debitAmountTotal
-                        ec.logger.error("creditAmountTotal - debitAmountTotal-> ${creditAmountTotal} - ${debitAmountTotal} = ${netCredit}")
-
                         if (netCredit != 0.0) {
                             // NOTE: if isNetDebit then we create a credit offset, otherwise we create a debit offset
                             boolean isNetDebit = netCredit < 0.0
