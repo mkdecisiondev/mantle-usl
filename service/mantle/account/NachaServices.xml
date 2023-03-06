@@ -506,7 +506,7 @@ along with this software (see the LICENSE.md file). If not, see
             <iterate list="paymentMethodIdList" entry="paymentMethodId">
                 <entity-find-one entity-name="mantle.account.method.PaymentMethod" value-field="paymentMethod"/>
                 <entity-find-one entity-name="mantle.account.method.BankAccount" value-field="bankAccount"/>
-                <if condition="bankAccount == null"><return error="true" message="Payment method ${paymentMethodId} is not a bank account"/></if>
+                <if condition="bankAccount == null"><return error="true" message="Payment method ${paymentMethodId} is not a bank account"/><check-errors/></if>
 
                 <!-- verify that File Header fields are correct -->
                 <if condition="!bankAccount.nachaImmedDest || bankAccount.nachaImmedDest.length() &lt; 9 || bankAccount.nachaImmedDest.length() &gt; 10">
@@ -579,7 +579,7 @@ along with this software (see the LICENSE.md file). If not, see
                 <set field="totalNumberOfPayments" from="totalNumberOfPayments + count"/>
             </iterate>
             <!-- no payments? return now with a message -->
-            <if condition="totalNumberOfPayments == 0"><return message="No pending ACH payments found for payment method [${paymentMethodId}]"/></if>
+            <if condition="totalNumberOfPayments == 0"><return message="No pending ACH payments found for payment methods: ${paymentMethodIdList}"/></if>
 
             <!-- count of files sent today for File ID Modifier in File Header char 34 -->
             <set field="todayRange" from="ec.user.getPeriodRange('day', '0')"/>
@@ -601,6 +601,10 @@ along with this software (see the LICENSE.md file). If not, see
              have the PaymentMethodFile that is created correspond to the deposit clearing account for it to show up
               in the vendor dashboard -->
             <set field="clearingPaymntMthdAndBankAcct" from="paymentMethodWithAccountList.find { it.paymentMethod.purposeEnumId == 'PmpPaymentClearingAccount' }"/>
+            <if condition="clearingPaymntMthdAndBankAcct == null">
+                <message error="true">Could not find a deposit clearing account in the Payment Method ID list provided.</message>
+                <check-errors/>
+            </if>
             <set field="paymentMethod" from="clearingPaymntMthdAndBankAcct.paymentMethod"/>
             <set field="bankAccount" from="clearingPaymntMthdAndBankAcct.bankAccount"/>
             <set field="nachaImmedDestName" from="clearingPaymntMthdAndBankAcct.bankAccount.nachaImmedDestName"/>
@@ -1025,7 +1029,6 @@ along with this software (see the LICENSE.md file). If not, see
                     <message type="danger">Not sending file ${paymentMethodFileId}, no message type or remote system configured for payment method ${paymentMethodId} and file type ${fileTypeEnumId}</message>
                 </else></if>
             </if>
-
         </actions>
     </service>
 
