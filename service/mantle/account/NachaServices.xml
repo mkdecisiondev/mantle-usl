@@ -600,15 +600,13 @@ along with this software (see the LICENSE.md file). If not, see
             <!-- retrieve the paymentMethod and bankAccount that correspond to the deposit clearing account, we need to
              have the PaymentMethodFile that is created correspond to the deposit clearing account for it to show up
               in the vendor dashboard -->
-            <iterate entry="paymentMethodWithAccount" list="paymentMethodWithAccountList">
-                <if condition="paymentMethodWithAccount.paymentMethod.purposeEnumId == 'PmpPaymentClearingAccount'">
-                    <set field="paymentMethod" from="paymentMethodWithAccount.paymentMethod"/>
-                    <set field="bankAccount" from="paymentMethodWithAccount.bankAccount"/>
-                    <set field="nachaImmedDestName" from="paymentMethodWithAccount.bankAccount.nachaImmedDestName"/>
-                    <set field="nachaImmedOrigName" from="paymentMethodWithAccount.bankAccount.nachaImmedOrigName"/>
-                </if>
-            </iterate>
+            <set field="clearingPaymntMthdAndBankAcct" from="paymentMethodWithAccountList.find { it.paymentMethod.purposeEnumId == 'PmpPaymentClearingAccount' }"/>
+            <set field="paymentMethod" from="clearingPaymntMthdAndBankAcct.paymentMethod"/>
+            <set field="bankAccount" from="clearingPaymntMthdAndBankAcct.bankAccount"/>
+            <set field="nachaImmedDestName" from="clearingPaymntMthdAndBankAcct.bankAccount.nachaImmedDestName"/>
+            <set field="nachaImmedOrigName" from="clearingPaymntMthdAndBankAcct.bankAccount.nachaImmedOrigName"/>
             <set field="paymentMethodId" from="paymentMethod.paymentMethodId"/>
+
             <!-- create a PaymentMethodFile record using the deposit clearing account paymentMethodId.
             The paymentMethodFileId is added to the context with this call (used in the nacha file written out) -->
             <service-call name="create#mantle.account.method.PaymentMethodFile" in-map="context" out-map="context"/>
