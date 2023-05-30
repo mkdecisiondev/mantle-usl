@@ -299,7 +299,7 @@ along with this software (see the LICENSE.md file). If not, see
                     entry.append("6")
                     // 02-03: Transaction Code: checking/etc credit '22', debit '27'; savings credit '32', debit '37', general ledger '42'
                     if (pmtBankAccount.typeEnumId == 'BatSavings') { entry.append(outgoing ? "32" : "37") }
-                    else if (isBatGeneralLedger) { entry.append("22") }
+                    else if (isBatGeneralLedger) { entry.append(outgoing ? "42" : "47") }
                     else { entry.append(outgoing ? "22" : "27") }
                     // 04-11: Receiving DFI R/T number (8 digits)
                     //     First eight digits of routing/transit number of receiving financial depository institution (RDFI)
@@ -361,7 +361,7 @@ along with this software (see the LICENSE.md file). If not, see
                         entry.append("6")
                         // 02-03: Transaction Code: checking/etc credit '22', debit '27'; savings credit '32', debit '37', general ledger '42'
                         // if this is a net debit, create a credit; otherwise create a debit
-                        if (isBatGeneralLedger) { entry.append("42") }
+                        if (isBatGeneralLedger) { entry.append(isNetDebit ? "42" : "47") }
                         else { entry.append(isNetDebit ? "22" : "27") }
                         // 04-11: Receiving DFI R/T number (8 digits)
                         entry.append(routingNumber.substring(0, 8))
@@ -853,7 +853,7 @@ along with this software (see the LICENSE.md file). If not, see
                         entry.append("6")
                         // 02-03: Transaction Code: checking/etc credit '22', debit '27'; savings credit '32', debit '37', general ledger '42'
                         if (pmtBankAccount.typeEnumId == 'BatSavings') { entry.append(outgoing ? "32" : "37") }
-                        else if (isBatGeneralLedger) { entry.append("42") }
+                        else if (isBatGeneralLedger) { entry.append(outgoing ? "42" : "47") }
                         else { entry.append(outgoing ? "22" : "27") }
                         // 04-11: Receiving DFI R/T number (8 digits)
                         //     First eight digits of routing/transit number of receiving financial depository institution (RDFI)
@@ -913,7 +913,7 @@ along with this software (see the LICENSE.md file). If not, see
                             entry.append("6")
                             // 02-03: Transaction Code: checking/etc credit '22', debit '27'; savings credit '32', debit '37'
                             // if this is a net debit, create a credit; otherwise create a debit
-                            if (isBatGeneralLedger) { entry.append("42") }
+                            if (isBatGeneralLedger) { entry.append(isNetDebit ? "42" : "47") }
                             else { entry.append(isNetDebit ? "22" : "27") }
                             // 04-11: Receiving DFI R/T number (8 digits)
                             entry.append(routingNumber.substring(0, 8))
