@@ -1247,12 +1247,25 @@ along with this software (see the LICENSE.md file). If not, see
 
             <!-- gather all the NACHA files in the given working directory-->
             <set field="inputDocumentLocations" from="[]"/>
-            <set field="nachaFileLocation" from="workingDirPath + '/nachaFile_' + isoTimestamp + '.txt'"/>
-            <entity-find-one entity-name="mantle.account.method.PaymentMethodFile" value-field="paymentMethodFile"/>
-            <script><![CDATA[
-                ec.resource.getLocationReference(nachaFileLocation).putText(paymentMethodFile.fileText)
-                inputDocumentLocations.add(nachaFileLocation)
-            ]]></script>
+<!--            <entity-find-one entity-name="mantle.account.method.PaymentMethodFile" value-field="paymentMethodFile"/>-->
+
+            <!-- find applicable payments (match fromPartyId or toPartyId, and statusId=PmntAuthorized) -->
+            <entity-find entity-name="mantle.account.method.PaymentMethodFile" list="fileList">
+                <econdition field-name="fileDate" operator="greater-equals" from="fromDate" ignore-if-empty="true"/>
+                <econdition field-name="fileDate" operator="less-equals" from="thruDate"/>
+                <order-by field-name="fileDate"/>
+            </entity-find>
+
+            <log level="error" message="fileList -> ${fileList} is not"/>
+
+            <iterate list="fileList" entry="paymentMethodFile">
+                <set field="nachaFileLocation" from="workingDirPath + '/nachaFile_' + paymentMethodFile.paymentMethodFileId +'_' + isoTimestamp + '.txt'"/>
+
+                <script><![CDATA[
+                    ec.resource.getLocationReference(nachaFileLocation).putText(paymentMethodFile.fileText)
+                    inputDocumentLocations.add(nachaFileLocation)
+                    ]]></script>
+            </iterate>
 <!--            <script>ec.web.sendTextResponse(paymentMethodFile.fileText, "text/plain", "PaymentFile${paymentMethodFileId}.txt")</script>-->
 
             <!-- create final archive -->
@@ -1262,21 +1275,31 @@ along with this software (see the LICENSE.md file). If not, see
                 <field-map field-name="compressedFileLocation"/>
             </service-call>
 
+            <!-- count of files sent today for File ID Modifier in File Header char 34 -->
+            <set field="todayRange" from="ec.user.getPeriodRange('day', '0')"/>
+            <log level="error" message="todayRange -> ${todayRange}"/>
+<!--            <entity-find-count entity-name="mantle.account.method.PaymentMethodFile" count-field="fileCount">-->
+<!--                <econdition field-name="paymentMethodId"/>-->
+<!--                <econdition field-name="fileDate" operator="greater-equals" from="todayRange[0]"/>-->
+<!--                <econdition field-name="fileDate" operator="less-equals" from="todayRange[1]"/>-->
+<!--            </entity-find-count>-->
+
+
             <!-- upload to SFTP -->
             <script>
-                import org.moqui.sftp.SftpClient
-
-                ec.logger.error("sftpRemote -> ${sftpRemote}")
-                def sftpClient = new SftpClient(sftpRemote.sendUrl, sftpRemote.username)
-                        .password(sftpRemote.password)
-                ec.logger.error("sftpClient -> ${sftpClient}")
-
-                sftpClient.connect()
-                try {
-                    sftpClient.put(sftpUploadPath + '/' + workingDirName + '.zip', "", ec.resource.getLocationReference(compressedFileLocation).openStream())
-                } finally {
-                    sftpClient.close()
-                }
+//                import org.moqui.sftp.SftpClient
+//
+//                ec.logger.error("sftpRemote -> ${sftpRemote}")
+//                def sftpClient = new SftpClient(sftpRemote.sendUrl, sftpRemote.username)
+//                        .password(sftpRemote.password)
+//                ec.logger.error("sftpClient -> ${sftpClient}")
+//
+//                sftpClient.connect()
+//                try {
+//                    sftpClient.put(sftpUploadPath + '/' + workingDirName + '.zip', "", ec.resource.getLocationReference(compressedFileLocation).openStream())
+//                } finally {
+//                    sftpClient.close()
+//                }
             </script>
 
         </actions>
