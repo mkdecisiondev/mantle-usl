@@ -1217,18 +1217,16 @@ along with this software (see the LICENSE.md file). If not, see
 
     <service verb="download" noun="NachaZipFile">
         <in-parameters>
-            <parameter name="paymentMethodFileId"/>
             <parameter name="fromDate" type="Timestamp"><description>If null no limit on look back</description></parameter>
-            <parameter name="thruDate" type="Timestamp" default="ec.user.nowTimestamp">
-                <description>If null look through now</description></parameter>
-            <parameter name="fileDate" type="Timestamp" default="ec.user.nowTimestamp"><description>The date/time used
-                in various fields and set on PaymentMethodFile.fileDate</description></parameter>
+            <parameter name="thruDate" type="Timestamp" default="ec.user.nowTimestamp"><description>If null look through now</description></parameter>
         </in-parameters>
         <out-parameters>
-            <parameter name="paymentMethodFileId"/>
             <parameter name="compressedFileLocation"/>
+            <parameter name="inputDocumentLocations"/>
+            <parameter name="sftpStatus"/>
         </out-parameters>
         <actions>
+
             <!-- prepare working directory to download NACHA files and then compress them in an archive-->
             <script>
                 import org.apache.commons.io.FilenameUtils
@@ -1247,16 +1245,14 @@ along with this software (see the LICENSE.md file). If not, see
 
             <!-- gather all the NACHA files in the given working directory-->
             <set field="inputDocumentLocations" from="[]"/>
-<!--            <entity-find-one entity-name="mantle.account.method.PaymentMethodFile" value-field="paymentMethodFile"/>-->
+            <entity-find-one entity-name="mantle.account.method.PaymentMethodFile" value-field="paymentMethodFile"/>
 
-            <!-- find applicable payments (match fromPartyId or toPartyId, and statusId=PmntAuthorized) -->
+            <!-- find all payment method files that are within the fromDate and the thruDate ) -->
             <entity-find entity-name="mantle.account.method.PaymentMethodFile" list="fileList">
                 <econdition field-name="fileDate" operator="greater-equals" from="fromDate" ignore-if-empty="true"/>
                 <econdition field-name="fileDate" operator="less-equals" from="thruDate"/>
                 <order-by field-name="fileDate"/>
             </entity-find>
-
-            <log level="error" message="fileList -> ${fileList} is not"/>
 
             <iterate list="fileList" entry="paymentMethodFile">
                 <set field="nachaFileLocation" from="workingDirPath + '/nachaFile_' + paymentMethodFile.paymentMethodFileId +'_' + isoTimestamp + '.txt'"/>
@@ -1266,7 +1262,6 @@ along with this software (see the LICENSE.md file). If not, see
                     inputDocumentLocations.add(nachaFileLocation)
                     ]]></script>
             </iterate>
-<!--            <script>ec.web.sendTextResponse(paymentMethodFile.fileText, "text/plain", "PaymentFile${paymentMethodFileId}.txt")</script>-->
 
             <!-- create final archive -->
             <set field="compressedFileLocation" from="workingDirPath + '.zip'"/>
@@ -1276,20 +1271,26 @@ along with this software (see the LICENSE.md file). If not, see
             </service-call>
 
             <!-- count of files sent today for File ID Modifier in File Header char 34 -->
-            <set field="todayRange" from="ec.user.getPeriodRange('day', '0')"/>
+            <set field="todayRange" from="ec.user.getPeriodRange('day', '3')"/>
             <log level="error" message="todayRange -> ${todayRange}"/>
-<!--            <entity-find-count entity-name="mantle.account.method.PaymentMethodFile" count-field="fileCount">-->
-<!--                <econdition field-name="paymentMethodId"/>-->
-<!--                <econdition field-name="fileDate" operator="greater-equals" from="todayRange[0]"/>-->
-<!--                <econdition field-name="fileDate" operator="less-equals" from="todayRange[1]"/>-->
-<!--            </entity-find-count>-->
+            <log level="error" message="todayRange -> ${todayRange[0]}"/>
+            <log level="error" message="todayRange -> ${todayRange[1]}"/>
 
-
+            <!-- find remote -->
+            <entity-find-one entity-name="moqui.service.message.SystemMessageRemote" value-field="sftpRemote">
+                <field-map field-name="systemMessageRemoteId" from="sftpSystemMessageRemoteId"/>
+            </entity-find-one>
+            <if condition="!sftpRemote">
+                <script><![CDATA[
+                    sftpStatus = "SFTP system message remote not found"
+                ]]></script>
+                <return/>
+            </if>
             <!-- upload to SFTP -->
             <script>
-//                import org.moqui.sftp.SftpClient
+                //                import org.moqui.sftp.SftpClient
 //
-//                ec.logger.error("sftpRemote -> ${sftpRemote}")
+                ec.logger.error("sftpRemote -> ${sftpRemote}")
 //                def sftpClient = new SftpClient(sftpRemote.sendUrl, sftpRemote.username)
 //                        .password(sftpRemote.password)
 //                ec.logger.error("sftpClient -> ${sftpClient}")
