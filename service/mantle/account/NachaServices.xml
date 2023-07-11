@@ -1159,7 +1159,7 @@ along with this software (see the LICENSE.md file). If not, see
             <set field="routingNumberSumStr" type="String"/>
             <set field="debitAmountTotalStr" type="String"/>
             <set field="creditAmountTotalStr" type="String"/>
-            <set field="numOfBatches" value="0" type="Long"/>
+            <set field="numOfBatches" value="0" type="Long"/> <!-- expected to be 2: one for payments entering the GL and one for payments leaving the GL -->
 
             <!-- script to generate the file header of the NACHA file (see File Header comment)-->
             <script><![CDATA[
