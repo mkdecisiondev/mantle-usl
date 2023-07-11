@@ -1072,8 +1072,6 @@ along with this software (see the LICENSE.md file). If not, see
             <parameter name="fileText"/>
         </out-parameters>
         <actions>
-            <set field="numOfBatches" value="0" type="Long"/>
-
             <entity-find-one entity-name="mantle.account.method.PaymentMethod" value-field="paymentMethod"/>
             <entity-find-one entity-name="mantle.account.method.BankAccount" value-field="bankAccount"/>
             <if condition="bankAccount == null"><return error="true" message="Payment method ${paymentMethodId} is not a bank account"/><check-errors/></if>
@@ -1161,6 +1159,7 @@ along with this software (see the LICENSE.md file). If not, see
             <set field="routingNumberSumStr" type="String"/>
             <set field="debitAmountTotalStr" type="String"/>
             <set field="creditAmountTotalStr" type="String"/>
+            <set field="numOfBatches" value="0" type="Long"/>
 
             <!-- script to generate the file header of the NACHA file (see File Header comment)-->
             <script><![CDATA[
