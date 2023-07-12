@@ -1216,7 +1216,10 @@ along with this software (see the LICENSE.md file). If not, see
     </service>
 
     <service verb="download" noun="NachaZipFile">
+        <description>This service generates a .zip file containing all NACHA files that were created in a given date/time range.
+            This file can then be sent via SFTP to a server specified in a SystemMessageRemote configuration. </description>
         <in-parameters>
+            <parameter name="sftpSystemMessageRemoteId" default-value="NachaFileRemote"/>
             <parameter name="fromDate" type="Timestamp"><description>If null no limit on look back</description></parameter>
             <parameter name="thruDate" type="Timestamp" default="ec.user.nowTimestamp"><description>If null look through now</description></parameter>
         </in-parameters>
@@ -1231,16 +1234,10 @@ along with this software (see the LICENSE.md file). If not, see
             <script>
                 import org.apache.commons.io.FilenameUtils
 
-//                def isoTimestamp = ec.user.nowTimestamp.format("yyyy-MM-dd'T'hhmmss'Z'")
-                def isoTimestamp = ec.user.nowTimestamp.format("yyyy-MM-dd")
+                def isoTimestamp = ec.user.nowTimestamp.format("yyyy-MM-dd'T'hhmmss'Z'")
                 def workingDirName = 'ALKAMI_CONTENT_EXPORT_' + isoTimestamp
                 ec.resource.getLocationReference('file:runtime/tmp').makeDirectory(workingDirName)
                 def workingDirPath = 'file:runtime/tmp/' + workingDirName
-
-                ec.logger.error("isoTimestamp -> ${isoTimestamp}")
-                ec.logger.error("workingDirName -> ${workingDirName}")
-                ec.logger.error("workingDirPath -> ${workingDirPath}")
-
             </script>
 
             <!-- gather all the NACHA files in the given working directory-->
@@ -1254,6 +1251,7 @@ along with this software (see the LICENSE.md file). If not, see
                 <order-by field-name="fileDate"/>
             </entity-find>
 
+            <!-- write out the payment method file to the given working directory -->
             <iterate list="fileList" entry="paymentMethodFile">
                 <set field="nachaFileLocation" from="workingDirPath + '/nachaFile_' + paymentMethodFile.paymentMethodFileId +'_' + isoTimestamp + '.txt'"/>
 
@@ -1270,13 +1268,7 @@ along with this software (see the LICENSE.md file). If not, see
                 <field-map field-name="compressedFileLocation"/>
             </service-call>
 
-            <!-- count of files sent today for File ID Modifier in File Header char 34 -->
-            <set field="todayRange" from="ec.user.getPeriodRange('day', '3')"/>
-            <log level="error" message="todayRange -> ${todayRange}"/>
-            <log level="error" message="todayRange -> ${todayRange[0]}"/>
-            <log level="error" message="todayRange -> ${todayRange[1]}"/>
-
-            <!-- find remote -->
+            <!-- find the remote to upload the NACHA zip file -->
             <entity-find-one entity-name="moqui.service.message.SystemMessageRemote" value-field="sftpRemote">
                 <field-map field-name="systemMessageRemoteId" from="sftpSystemMessageRemoteId"/>
             </entity-find-one>
@@ -1286,21 +1278,22 @@ along with this software (see the LICENSE.md file). If not, see
                 ]]></script>
                 <return/>
             </if>
+
             <!-- upload to SFTP -->
             <script>
-                //                import org.moqui.sftp.SftpClient
-//
-                ec.logger.error("sftpRemote -> ${sftpRemote}")
-//                def sftpClient = new SftpClient(sftpRemote.sendUrl, sftpRemote.username)
-//                        .password(sftpRemote.password)
-//                ec.logger.error("sftpClient -> ${sftpClient}")
-//
-//                sftpClient.connect()
-//                try {
-//                    sftpClient.put(sftpUploadPath + '/' + workingDirName + '.zip', "", ec.resource.getLocationReference(compressedFileLocation).openStream())
-//                } finally {
-//                    sftpClient.close()
-//                }
+                import org.moqui.sftp.SftpClient
+
+                def sftpClient = new SftpClient(sftpRemote.sendUrl, sftpRemote.username, 22)
+                        .password(sftpRemote.password).preserveAttributes(false)
+
+                sftpClient.connect()
+
+                try {
+                    sftpClient.put("/DAOLOS/NACHAZipFiles/", workingDirName + '.zip', ec.resource.getLocationStream(compressedFileLocation))
+                    sftpStatus = "File upload successful."
+                } finally {
+                    sftpClient.close()
+                }
             </script>
 
         </actions>
