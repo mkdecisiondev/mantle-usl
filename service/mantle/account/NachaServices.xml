@@ -1215,7 +1215,7 @@ along with this software (see the LICENSE.md file). If not, see
         </actions>
     </service>
 
-    <service verb="download" noun="NachaZipFile">
+    <service verb="export" noun="NachaZipFileViaSFTP">
         <description>This service generates a .zip file containing all NACHA files that were created in a given date/time range.
             This file can then be sent via SFTP to a server specified in a SystemMessageRemote configuration. </description>
         <in-parameters>
@@ -1224,9 +1224,9 @@ along with this software (see the LICENSE.md file). If not, see
             <parameter name="thruDate" type="Timestamp" default="ec.user.nowTimestamp"><description>If null look through now</description></parameter>
         </in-parameters>
         <out-parameters>
-            <parameter name="compressedFileLocation"/>
-            <parameter name="inputDocumentLocations"/>
-            <parameter name="sftpStatus"/>
+            <parameter name="compressedFileLocation"><description>The output location of the compressed NACHA zip file</description></parameter>
+            <parameter name="inputDocumentLocations"><description>The files that were collected to generate the NACHA file</description></parameter>
+            <parameter name="sftpStatus"><description>The status of the SFTP client</description></parameter>
         </out-parameters>
         <actions>
 
