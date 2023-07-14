@@ -1222,7 +1222,7 @@ along with this software (see the LICENSE.md file). If not, see
             <parameter name="sftpSystemMessageRemoteId" default-value="NachaFileRemote"/>
 <!--            <parameter name="fromDate" type="Timestamp"><description>If null no limit on look back</description></parameter>-->
 <!--            <parameter name="thruDate" type="Timestamp" default="ec.user.nowTimestamp"><description>If null look through now</description></parameter>-->
-            <parameter name="numOfDays" type="Integer" default-value="3"><description>Number of days before today's date</description></parameter>
+            <parameter name="numOfDays" type="Integer" default-value="7"><description>Number of days before today's date</description></parameter>
 
         </in-parameters>
         <out-parameters>
