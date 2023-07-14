@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<entity-facade-xml>
+
+    <moqui.service.job.ServiceJob jobName="export_NachaZipFileViaSFTP"
+              description="Export a compressed file containing NACHA files that were generated X number of days before current day at 00:00"
+              serviceName="mantle.account.NachaServices.export#NachaZipFileViaSFTP"
+              cronExpression="0 0 2 ? * MON" paused="Y" transactionTimeout="600">
+        <parameters parameterName="numOfDays" parameterValue="7"/>
+    </moqui.service.job.ServiceJob>
+
+    <moqui.service.job.ServiceJobParameter jobName="export_NachaZipFileViaSFTP"
+                                           parameterName="numOfDays" parameterValue="7"/>
+
+</entity-facade-xml>
+
