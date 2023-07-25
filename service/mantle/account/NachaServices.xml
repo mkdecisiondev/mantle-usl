@@ -1367,7 +1367,7 @@ along with this software (see the LICENSE.md file). If not, see
                             ?.idValue as String
 
                         // use "X" + rightmost 14 chars if taxId length is longer than 15 chars
-                        String individualId = taxId ?: ''
+                        String individualId = payment.nachaIin ?: taxId ?: ''
                         if (individualId.length() > 15) individualId = "X" + individualId.substring(0, 14)
 
                         // get Individual/Company Name
@@ -1652,7 +1652,7 @@ along with this software (see the LICENSE.md file). If not, see
                             ?.idValue as String
 
                         // use "X" + rightmost 14 chars if taxId length is longer than 15 chars
-                        String individualId = taxId ?: ''
+                        String individualId = payment.nachaIin ?: taxId ?: ''
                         if (individualId.length() > 15) individualId = "X" + individualId.substring(0, 14)
 
                         // get Individual/Company Name
