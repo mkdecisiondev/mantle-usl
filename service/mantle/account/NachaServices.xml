@@ -1366,6 +1366,9 @@ along with this software (see the LICENSE.md file). If not, see
                             .getFirst()
                             ?.idValue as String
 
+                        // strip any non-number characters
+                        taxId = (taxId ?: '').replaceAll(/\D/, '')
+
                         // use "X" + rightmost 14 chars if taxId length is longer than 15 chars
                         String individualId = payment.nachaIin ?: taxId ?: ''
                         if (individualId.length() > 15) individualId = "X" + individualId.substring(0, 14)
@@ -1650,6 +1653,9 @@ along with this software (see the LICENSE.md file). If not, see
                             .list()
                             .getFirst()
                             ?.idValue as String
+
+                        // strip any non-number characters
+                        taxId = (taxId ?: '').replaceAll(/\D/, '')
 
                         // use "X" + rightmost 14 chars if taxId length is longer than 15 chars
                         String individualId = payment.nachaIin ?: taxId ?: ''
