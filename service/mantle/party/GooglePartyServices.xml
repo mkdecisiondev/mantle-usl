@@ -216,11 +216,11 @@ along with this software (see the LICENSE.md file). If not, see
         <!-- https://developers.google.com/maps/documentation/places/web-service/autocomplete -->
         <in-parameters>
             <parameter name="query" required="true"/>
-            <parameter name="placeType"/>
             <parameter name="location"/>
             <parameter name="radius"/>
             <parameter name="country"/>
-            <parameter name="region"><description>for region options see: https://en.wikipedia.org/wiki/Country_code_top-level_domain</description></parameter>
+            <parameter name="region"><description>for region options see: https://developers.google.com/maps/documentation/places/web-service/autocomplete#region</description></parameter>
+            <parameter name="types"><description>for types options see: https://developers.google.com/maps/documentation/places/web-service/autocomplete#types</description></parameter>
             <parameter name="googleCloudKey" default="ec.user.getPreference('google.cloud.api.key')"/>
         </in-parameters>
         <out-parameters>
@@ -250,13 +250,13 @@ along with this software (see the LICENSE.md file). If not, see
                         .path("/maps/api/place/autocomplete/json")
                         .parameter("key", (String) googleCloudKey)
                         .parameter("input", (String) query)
-                if (placeType) uriBuilder.parameter("types", (String) placeType.trim())
                 if (location) uriBuilder.parameter("location", (String) location.trim())
                 if (radius) uriBuilder.parameter("radius", (String) radius.trim())
                 if (region) uriBuilder.parameter("region", (String) region.trim())
+                if (types) uriBuilder.parameter("types", (String) types.trim())
                 if (postalCode || country) uriBuilder.parameter("components", (postalCode ? "postal_code:" + postalCode : "") + (postalCode && country ? "|" : "") +  (country ? "country:" + country : ""))
                 uriBuilder.build()
-                ec.logger.warn("getUriString ${restClient.getUriString()}")
+//                ec.logger.warn("getUriString ${restClient.getUriString()}")
 
                 RestClient.RestResponse restResponse = restClient.call()
                 responseMap = (Map) restResponse.jsonObject()
