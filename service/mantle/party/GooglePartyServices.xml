@@ -113,19 +113,6 @@ along with this software (see the LICENSE.md file). If not, see
             </if>
 
             <script><![CDATA[
-                import org.moqui.context.ExecutionContext
-
-                def ec = ec as ExecutionContext
-
-//                ec.logger.error("ec: ${ec}")
-                ec.logger.error("ec: ${ec.context}")
-                def params = ec.context
-
-                params.each {
-                    key, val ->
-                        println "param: ${key} = ${val}"
-                }
-
                 org.moqui.util.RestClient restClient = ec.service.rest()  // .method(org.moqui.util.RestClient.POST)
                 def uriBuilder = restClient.uri().protocol("https").port(443).host("maps.googleapis.com")
                         .path("/maps/api/place/textsearch/json")
