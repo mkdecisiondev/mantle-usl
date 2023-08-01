@@ -196,4 +196,78 @@ along with this software (see the LICENSE.md file). If not, see
                 ]]></script>
         </actions>
     </service>
+
+    <service verb="get" noun="MapsPlaceAutocomplete">
+        <description>Uses Google Maps Places AutoComplete to find matches given a string.
+            Then it completes the search of each place using get#MapsPlaceDetails</description>
+        <!-- https://developers.google.com/maps/documentation/places/web-service/autocomplete -->
+        <in-parameters>
+            <parameter name="query" required="true"/>
+            <parameter name="location"/>
+            <parameter name="radius"/>
+            <parameter name="country"/>
+            <parameter name="region"><description>for region options see: https://developers.google.com/maps/documentation/places/web-service/autocomplete#region</description></parameter>
+            <parameter name="types"><description>for types options see: https://developers.google.com/maps/documentation/places/web-service/autocomplete#types</description></parameter>
+            <parameter name="googleCloudKey" default="ec.user.getPreference('google.cloud.api.key')"/>
+        </in-parameters>
+        <out-parameters>
+            <parameter name="resultList" type="List"><parameter name="resultMap" type="Map">
+                <parameter name="formatted_address"/> <!-- filters out all the output leaving only the formatted_addresses -->
+            </parameter></parameter>
+        </out-parameters>
+        <actions>
+            <if condition="!googleCloudKey">
+                <log level="warn" message="In get#MapsPlacesResults no API key found, returning no results"/>
+                <return/>
+            </if>
+            <set field="query" from="query?.trim()"/>
+            <set field="resultList" from="[]"/> <!-- initialize resultList here so it returns empty in failing cases -->
+            <if condition="!query">
+                <return/>
+            </if>
+
+            <script><![CDATA[
+                import org.moqui.context.ExecutionContext
+                import org.moqui.util.RestClient
+
+                def ec = ec as ExecutionContext
+
+                RestClient restClient = ec.service.rest()  // .method(org.moqui.util.RestClient.POST)
+                def uriBuilder = restClient.uri().protocol("https").port(443).host("maps.googleapis.com")
+                        .path("/maps/api/place/autocomplete/json")
+                        .parameter("key", (String) googleCloudKey)
+                        .parameter("input", (String) query)
+                if (location) uriBuilder.parameter("location", (String) location.trim())
+                if (radius) uriBuilder.parameter("radius", (String) radius.trim())
+                if (region) uriBuilder.parameter("region", (String) region.trim())
+                if (types) uriBuilder.parameter("types", (String) types.trim())
+                if (postalCode || country) uriBuilder.parameter("components", (postalCode ? "postal_code:" + postalCode : "") + (postalCode && country ? "|" : "") +  (country ? "country:" + country : ""))
+                uriBuilder.build()
+//                ec.logger.warn("getUriString ${restClient.getUriString()}") // uncomment the following line of code to verify the generated URI
+
+                RestClient.RestResponse restResponse = restClient.call()
+                responseMap = (Map) restResponse.jsonObject()
+
+                if (responseMap?.status == 'ZERO_RESULTS') {
+                    return
+                }
+                if (restResponse.statusCode < 200 || restResponse.statusCode >= 300 || responseMap?.status != 'OK') {
+                    ec.logger.warn("Unsuccessful Place Search response for input ${input} http status ${restResponse.statusCode}: ${responseMap}")
+                    ec.message.addPublic("Could not find address", "warning")
+                    return
+                }
+
+                responseMap.predictions.each {
+                    prediction ->
+                        def resultMap = [:] // contains entries of ["formatted_address": "..."]
+                        def response = ec.service.sync().name("mantle.party.GooglePartyServices.get#MapsPlaceDetails")
+                                .parameter("placeId", prediction.place_id).call()
+                        resultMap.put("formatted_address", response.result.formatted_address)
+                        resultList.add(resultMap)
+                }
+
+                ]]></script>
+        </actions>
+    </service>
+
 </services>
