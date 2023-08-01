@@ -243,7 +243,7 @@ along with this software (see the LICENSE.md file). If not, see
                 if (types) uriBuilder.parameter("types", (String) types.trim())
                 if (postalCode || country) uriBuilder.parameter("components", (postalCode ? "postal_code:" + postalCode : "") + (postalCode && country ? "|" : "") +  (country ? "country:" + country : ""))
                 uriBuilder.build()
-//                ec.logger.warn("getUriString ${restClient.getUriString()}")
+//                ec.logger.warn("getUriString ${restClient.getUriString()}") // uncomment the following line of code to verify the generated URI
 
                 RestClient.RestResponse restResponse = restClient.call()
                 responseMap = (Map) restResponse.jsonObject()
