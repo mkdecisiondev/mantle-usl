@@ -981,10 +981,8 @@ along with this software (see the LICENSE.md file). If not, see
                     batchControl.append("1".padLeft(7, '0'))
 
                     lines.add(batchControl)
-                    ec.logger.error("credit amount total: " + creditAmountBatchTotal)
-                    ec.logger.error("debit amount total: " + debitAmountBatchTotal)
 
-                    // Add the total credit and debit amounts to the total for the file
+                    // Add the total credit and debit batch totals to the file totals
                     creditAmountTotal += creditAmountBatchTotal
                     debitAmountTotal += debitAmountBatchTotal
                     ]]></script>
