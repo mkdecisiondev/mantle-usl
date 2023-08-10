@@ -526,10 +526,6 @@ along with this software (see the LICENSE.md file). If not, see
                 <if condition="!nachaImmedOrigName || nachaImmedOrigName.length() &gt; 23">
                     <message error="true">NACHA Immediate Origin Name field (${nachaImmedOrigName}) on Bank Account must be specified and not more than 23 characters</message></if>
 
-                <!-- verify that addOffsetRecord is 'Y' for all bank accounts -->
-<!--                <if condition="bankAccount?.nachaAddOffsetRecord != 'Y'">-->
-<!--                    <message error="true">NACHA Add Offset Record field on Bank Account must be 'Y' when doing multiple Payment Methods (found: ${bankAccount?.nachaAddOffsetRecord})</message></if>-->
-
                 <!-- if there is more than one bank account verify that they have the same nachaImmedDest and nachaImmedOrig fields -->
                 <if condition="paymentMethodWithAccountList.size() &gt; 0">
                     <if condition="paymentMethodWithAccountList.last().bankAccount.nachaImmedDest != bankAccount.nachaImmedDest">
@@ -604,6 +600,11 @@ along with this software (see the LICENSE.md file). If not, see
                 <service-call name="mantle.work.EventServices.get#NextBusinessDay" out-map="nextDayOut"
                               in-map="[startDate:fileDate, workEffortCategoryIds:['HolidayUsaBank']]"/>
                 <set field="effectiveEntryDate" from="nextDayOut.nextDayDate"/>
+            </if>
+
+            <!-- collect all the nachaAddOffsetRecord flags from the different payment methods' bank accounts and determine if they are the same -->
+            <if condition="paymentMethodWithAccountList.collect { it.bankAccount?.nachaAddOffsetRecord }.unique().size() != 1">
+                <log level="warn" message="The nachaAddOffsetRecord flags differ among the bank accounts. This is not recommended."/>
             </if>
 
             <!-- retrieve the paymentMethod and bankAccount that correspond to the deposit clearing account, we need to
