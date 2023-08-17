@@ -1088,11 +1088,6 @@ along with this software (see the LICENSE.md file). If not, see
             <if condition="!nachaImmedOrigName || nachaImmedOrigName.length() &gt; 23">
                 <message error="true">NACHA Immediate Origin Name field (${nachaImmedOrigName}) on Bank Account must be specified and not more than 23 characters</message></if>
 
-            <!-- verify that addOffsetRecord is 'Y' for all bank accounts -->
-            <if condition="bankAccount?.nachaAddOffsetRecord != 'Y'">
-                <message error="true">NACHA Add Offset Record field on Bank Account must be 'Y' when doing multiple Payment Methods (found: ${bankAccount?.nachaAddOffsetRecord})</message>
-            </if>
-
             <!-- if there were any errors added in the above, return with the error messages -->
             <check-errors/>
 
