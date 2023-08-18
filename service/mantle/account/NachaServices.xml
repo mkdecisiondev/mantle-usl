@@ -1094,11 +1094,6 @@ along with this software (see the LICENSE.md file). If not, see
             <if condition="!nachaImmedOrigName || nachaImmedOrigName.length() &gt; 23">
                 <message error="true">NACHA Immediate Origin Name field (${nachaImmedOrigName}) on Bank Account must be specified and not more than 23 characters</message></if>
 
-            <!-- verify that addOffsetRecord is 'Y' for all bank accounts -->
-            <if condition="bankAccount?.nachaAddOffsetRecord != 'Y'">
-                <message error="true">NACHA Add Offset Record field on Bank Account must be 'Y' when doing multiple Payment Methods (found: ${bankAccount?.nachaAddOffsetRecord})</message>
-            </if>
-
             <!-- if there were any errors added in the above, return with the error messages -->
             <check-errors/>
 
@@ -1364,16 +1359,8 @@ along with this software (see the LICENSE.md file). If not, see
                         String otherPartyId = payment.fromPartyId == paymentMethod.ownerPartyId ? payment.toPartyId : payment.fromPartyId
                         EntityValue otherParty = ec.entity.find("mantle.party.PartyDetail").condition("partyId", otherPartyId).one()
 
-                        // look up the payment's source party's tax identification number
-                        def taxId = ec.entity.find('mantle.party.PartyIdentification')
-                            .condition('partyId', payment.fromPartyId)
-                            .condition('partyIdTypeEnumId', 'in', ['PtidSsn','PtidFein'])
-                            .list()
-                            .getFirst()
-                            ?.idValue as String
-
-                        // use "X" + rightmost 14 chars if taxId length is longer than 15 chars
-                        String individualId = taxId ?: ''
+                        // use "X" + rightmost 14 chars if IIN length is longer than 15 chars
+                        String individualId = payment.nachaIin ?: ''
                         if (individualId.length() > 15) individualId = "X" + individualId.substring(0, 14)
 
                         // get Individual/Company Name
@@ -1649,16 +1636,8 @@ along with this software (see the LICENSE.md file). If not, see
                         String otherPartyId = payment.fromPartyId == paymentMethod.ownerPartyId ? payment.toPartyId : payment.fromPartyId
                         EntityValue otherParty = ec.entity.find("mantle.party.PartyDetail").condition("partyId", otherPartyId).one()
 
-                        // look up the payment's target party's tax identification number
-                        def taxId = ec.entity.find('mantle.party.PartyIdentification')
-                            .condition('partyId', payment.toPartyId)
-                            .condition('partyIdTypeEnumId', 'in', ['PtidSsn','PtidFein'])
-                            .list()
-                            .getFirst()
-                            ?.idValue as String
-
-                        // use "X" + rightmost 14 chars if taxId length is longer than 15 chars
-                        String individualId = taxId ?: ''
+                        // use "X" + rightmost 14 chars if IIN length is longer than 15 chars
+                        String individualId = payment.nachaIin ?: ''
                         if (individualId.length() > 15) individualId = "X" + individualId.substring(0, 14)
 
                         // get Individual/Company Name
