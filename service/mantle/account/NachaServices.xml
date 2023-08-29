@@ -1441,10 +1441,9 @@ along with this software (see the LICENSE.md file). If not, see
                             StringBuilder entry = new StringBuilder()
                             // 01-01: Record Type Code = '6'
                             entry.append("6")
-                            // 02-03: Transaction Code: checking/etc credit '22', debit '27'; savings credit '32', debit '37'
-                            // if this is a net debit, create a credit; otherwise create a debit
-                            if (isBatGeneralLedger) { entry.append(isNetDebit ? "42" : "47") }
-                            else { entry.append(isNetDebit ? "22" : "27") }
+                            // 02-03: Transaction Codes from and to a FI's general ledger should be credit '42', debit '47'
+                            // if this offset record is a net debit, create a credit; otherwise create a debit
+                            entry.append(isNetDebit ? "42" : "47")
                             // 04-11: Receiving DFI R/T number (8 digits)
                             entry.append(routingNumber.substring(0, 8))
                             // 12-12: R/T number check digit
@@ -1718,10 +1717,9 @@ along with this software (see the LICENSE.md file). If not, see
                             StringBuilder entry = new StringBuilder()
                             // 01-01: Record Type Code = '6'
                             entry.append("6")
-                            // 02-03: Transaction Code: checking/etc credit '22', debit '27'; savings credit '32', debit '37'
-                            // if this is a net debit, create a credit; otherwise create a debit
-                            if (isBatGeneralLedger) { entry.append(isNetDebit ? "42" : "47") }
-                            else { entry.append(isNetDebit ? "22" : "27") }
+                            // 02-03: Transaction Codes from and to a FI's general ledger should be credit '42', debit '47'
+                            // if this offset record is a net debit, create a credit; otherwise create a debit
+                            entry.append(isNetDebit ? "42" : "47")
                             // 04-11: Receiving DFI R/T number (8 digits)
                             entry.append(routingNumber.substring(0, 8))
                             // 12-12: R/T number check digit
