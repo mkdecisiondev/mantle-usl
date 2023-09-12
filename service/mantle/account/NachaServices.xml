@@ -1249,6 +1249,9 @@ along with this software (see the LICENSE.md file). If not, see
             <if condition="enteringPayments.size() &gt; 0">
                 <set field="numOfBatches" from="numOfBatches + 1"/>
 
+                <set field="debitBatchAmountTotal" type="BigDecimal" value="0.0"/>
+                <set field="creditBatchAmountTotal" type="BigDecimal" value="0.0"/>
+
                 <!-- Batch Header: these fields need to be put in the batch header or batch control sections of the NACHA file -->
                 <set field="nachaOdfiId" from="bankAccount.nachaOdfiId ?: bankAccount.nachaImmedDest.take(8)"/>
                 <if condition="nachaOdfiId.length() &gt; 8">
@@ -1353,7 +1356,7 @@ along with this software (see the LICENSE.md file). If not, see
                             continue
                         }
                         // add to debitAmountTotal or creditAmountTotal
-                        if (outgoing) creditAmountTotal += payment.amount else debitAmountTotal += payment.amount
+                        if (outgoing) creditBatchAmountTotal += payment.amount else debitBatchAmountTotal += payment.amount
 
                         // look up other party PartyDetail
                         String otherPartyId = payment.fromPartyId == paymentMethod.ownerPartyId ? payment.toPartyId : payment.fromPartyId
@@ -1422,14 +1425,14 @@ along with this software (see the LICENSE.md file). If not, see
                         String accountNumber = bankAccount.accountNumber
                         if (accountNumber.length() > 17) accountNumber = accountNumber.substring(0, 17)
 
-                        BigDecimal netCredit = creditAmountTotal - debitAmountTotal
+                        BigDecimal netCredit = creditBatchAmountTotal - debitBatchAmountTotal
                         if (netCredit != 0.0) {
                             // NOTE: if isNetDebit then we create a credit offset, otherwise we create a debit offset
                             boolean isNetDebit = netCredit < 0.0
                             BigDecimal netAmount = isNetDebit ? netCredit.negate() : netCredit
 
                             String amountStr = netAmount.movePointRight(2).longValueExact() as String
-                            if (isNetDebit) creditAmountTotal += netAmount else debitAmountTotal += netAmount
+                            if (isNetDebit) creditBatchAmountTotal += netAmount else debitBatchAmountTotal += netAmount
 
                             // get Individual/Company Name
                             String indName = paymentMethod.companyNameOnAccount
@@ -1472,8 +1475,8 @@ along with this software (see the LICENSE.md file). If not, see
                     if (routingNumberSumStr.length() > 10)
                         routingNumberSumStr = routingNumberSumStr.substring(routingNumberSumStr.length() - 10, routingNumberSumStr.length())
 
-                    debitAmountTotalStr = debitAmountTotal.movePointRight(2).longValueExact() as String
-                    creditAmountTotalStr = creditAmountTotal.movePointRight(2).longValueExact() as String
+                    debitBatchAmountTotalStr = debitBatchAmountTotal.movePointRight(2).longValueExact() as String
+                    creditBatchAmountTotalStr = creditBatchAmountTotal.movePointRight(2).longValueExact() as String
 
                     // Batch Control (8)
                     StringBuilder batchControl = new StringBuilder()
@@ -1486,9 +1489,9 @@ along with this software (see the LICENSE.md file). If not, see
                     //     detail records; zero left padded, if too long trim from left
                     batchControl.append(routingNumberSumStr.padLeft(10, '0'))
                     // 21-32: Total batch debit entry dollar amount (12 digits, std number format pattern)
-                    batchControl.append(debitAmountTotalStr.padLeft(12, '0'))
+                    batchControl.append(debitBatchAmountTotalStr.padLeft(12, '0'))
                     // 33-44: Total batch credit entry dollar amount (12 digits, std number format pattern)
-                    batchControl.append(creditAmountTotalStr.padLeft(12, '0'))
+                    batchControl.append(creditBatchAmountTotalStr.padLeft(12, '0'))
                     // 45-54: Company ID (same as in Batch Header)
                     batchControl.append(bankAccount.nachaCompanyId.toUpperCase().padRight(10, ' '))
                     // 55-73: Message authentication code (leave blank, 19 spaces)
@@ -1503,6 +1506,9 @@ along with this software (see the LICENSE.md file). If not, see
                     lines.add(batchControl)
 
                     ]]></script>
+
+                <set field="debitAmountTotal" from="debitAmountTotal + debitBatchAmountTotal"/>
+                <set field="creditAmountTotal" from="creditAmountTotal + creditBatchAmountTotal"/>
             </if>
 
             <!-- make a batch for the payments leaving the PaymentMethod -->
@@ -1524,6 +1530,9 @@ along with this software (see the LICENSE.md file). If not, see
             <!-- do not generate a batch for a paymentMethodId without valid payments, skip to the next payment -->
             <if condition="leavingPayments.size() &gt; 0">
                 <set field="numOfBatches" from="numOfBatches + 1"/>
+
+                <set field="debitBatchAmountTotal" type="BigDecimal" value="0.0"/>
+                <set field="creditBatchAmountTotal" type="BigDecimal" value="0.0"/>
 
                 <!-- Batch Header: these fields need to be put in the batch header or batch control sections of the NACHA file -->
                 <set field="nachaOdfiId" from="bankAccount.nachaOdfiId ?: bankAccount.nachaImmedDest.take(8)"/>
@@ -1628,8 +1637,8 @@ along with this software (see the LICENSE.md file). If not, see
                             ec.message.addMessage(ec.resource.expand('Amount ${payment.amount.toPlainString()} is too big for NACHA transactions on payment ${payment.paymentId}',''), "danger")
                             continue
                         }
-                        // add to debitAmountTotal or creditAmountTotal
-                        if (outgoing) creditAmountTotal += payment.amount else debitAmountTotal += payment.amount
+                        // add to debitBatchAmountTotal or creditBatchAmountTotal
+                        if (outgoing) creditBatchAmountTotal += payment.amount else debitBatchAmountTotal += payment.amount
 
                         // look up other party PartyDetail
                         String otherPartyId = payment.fromPartyId == paymentMethod.ownerPartyId ? payment.toPartyId : payment.fromPartyId
@@ -1698,14 +1707,14 @@ along with this software (see the LICENSE.md file). If not, see
                         String accountNumber = bankAccount.accountNumber
                         if (accountNumber.length() > 17) accountNumber = accountNumber.substring(0, 17)
 
-                        BigDecimal netCredit = creditAmountTotal - debitAmountTotal
+                        BigDecimal netCredit = creditBatchAmountTotal - debitBatchAmountTotal
                         if (netCredit != 0.0) {
                             // NOTE: if isNetDebit then we create a credit offset, otherwise we create a debit offset
                             boolean isNetDebit = netCredit < 0.0
                             BigDecimal netAmount = isNetDebit ? netCredit.negate() : netCredit
 
                             String amountStr = netAmount.movePointRight(2).longValueExact() as String
-                            if (isNetDebit) creditAmountTotal += netAmount else debitAmountTotal += netAmount
+                            if (isNetDebit) creditBatchAmountTotal += netAmount else debitBatchAmountTotal += netAmount
 
                             // get Individual/Company Name
                             String indName = paymentMethod.companyNameOnAccount
@@ -1748,8 +1757,8 @@ along with this software (see the LICENSE.md file). If not, see
                     if (routingNumberSumStr.length() > 10)
                         routingNumberSumStr = routingNumberSumStr.substring(routingNumberSumStr.length() - 10, routingNumberSumStr.length())
 
-                    debitAmountTotalStr = debitAmountTotal.movePointRight(2).longValueExact() as String
-                    creditAmountTotalStr = creditAmountTotal.movePointRight(2).longValueExact() as String
+                    debitBatchAmountTotalStr = debitBatchAmountTotal.movePointRight(2).longValueExact() as String
+                    creditBatchAmountTotalStr = creditBatchAmountTotal.movePointRight(2).longValueExact() as String
 
                     // Batch Control (8)
                     StringBuilder batchControl = new StringBuilder()
@@ -1762,9 +1771,9 @@ along with this software (see the LICENSE.md file). If not, see
                     //     detail records; zero left padded, if too long trim from left
                     batchControl.append(routingNumberSumStr.padLeft(10, '0'))
                     // 21-32: Total batch debit entry dollar amount (12 digits, std number format pattern)
-                    batchControl.append(debitAmountTotalStr.padLeft(12, '0'))
+                    batchControl.append(debitBatchAmountTotalStr.padLeft(12, '0'))
                     // 33-44: Total batch credit entry dollar amount (12 digits, std number format pattern)
-                    batchControl.append(creditAmountTotalStr.padLeft(12, '0'))
+                    batchControl.append(creditBatchAmountTotalStr.padLeft(12, '0'))
                     // 45-54: Company ID (same as in Batch Header)
                     batchControl.append(bankAccount.nachaCompanyId.toUpperCase().padRight(10, ' '))
                     // 55-73: Message authentication code (leave blank, 19 spaces)
@@ -1779,10 +1788,16 @@ along with this software (see the LICENSE.md file). If not, see
                     lines.add(batchControl)
 
                     ]]></script>
+
+                <set field="debitAmountTotal" from="debitAmountTotal + debitBatchAmountTotal"/>
+                <set field="creditAmountTotal" from="creditAmountTotal + creditBatchAmountTotal"/>
             </if>
 
             <!-- script to generate the file control or footer of the NACHA file (see File Header comment) -->
             <script><![CDATA[
+                debitAmountTotalStr = debitAmountTotal.movePointRight(2).longValueExact() as String
+                creditAmountTotalStr = creditAmountTotal.movePointRight(2).longValueExact() as String
+
                 // File Control (9)
                 StringBuilder fileControl = new StringBuilder()
                 // 01-01: Record Type Code = '9'
