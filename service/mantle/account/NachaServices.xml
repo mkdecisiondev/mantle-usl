@@ -1804,8 +1804,19 @@ along with this software (see the LICENSE.md file). If not, see
                 fileControl.append("9")
                 // 02-07: Batch count (6 chars)
                 fileControl.append((numOfBatches as String).padLeft(6, '0'))
-                // 08-13: Block count (6 chars); count of 10-line blocks (entries plus 2 header and 2 control records, divide by 10, round up)
-                fileControl.append(((entryCount + 4) / 10).setScale(0, BigDecimal.ROUND_UP).toPlainString().padLeft(6, '0'))
+                // 08-13: Block count (6 chars); Counting entryRecords + Mandatory Records
+                /*
+                 * Mandatory Records
+                 *  if (numOfBatches == 1) 4 Mandatory fields File Header (1), at least one Batch Header (1), at least one Batch Control (1), File Control (1) = 4 records
+                 *  else 4 Mandatory fields File Header (1), at least one Batch Header (1), at least one Entry Detail (1), at least one Batch Control (1), File Control (1) = 5 records
+                 */
+                int mandatoryEntry
+                if (numOfBatches == 1) {
+                    mandatoryEntry = 4
+                } else {
+                    mandatoryEntry = 5
+                }
+                fileControl.append(((entryCount + mandatoryEntry) / 10).setScale(0, BigDecimal.ROUND_UP).toPlainString().padLeft(6, '0'))
                 // 14-21: Entry/addenda record count (8 chars)
                 fileControl.append((entryCount as String).padLeft(8, '0'))
                 // 22-31: Entry hash total (10 chars); since we have 1 batch same as value in Batch Control
