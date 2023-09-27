@@ -1156,8 +1156,8 @@ along with this software (see the LICENSE.md file). If not, see
             <set field="paymentList" from="[]"/>
             <set field="debitAmountTotal" type="BigDecimal" value="0.0"/>
             <set field="creditAmountTotal" type="BigDecimal" value="0.0"/>
-            <set field="entryCount" value="0" type="Long"/>
-            <set field="routingNumberSumStr" type="String"/>
+            <set field="totalEntryCount" value="0" type="Long"/>
+            <set field="batchHashes" type="List" from="[]"/>
             <set field="debitAmountTotalStr" type="String"/>
             <set field="creditAmountTotalStr" type="String"/>
             <set field="numOfBatches" value="0" type="Long"/> <!-- expected to be 2: one for payments entering the GL and one for payments leaving the GL -->
@@ -1248,6 +1248,7 @@ along with this software (see the LICENSE.md file). If not, see
             <!-- do not generate a batch for a paymentMethodId without valid payments, skip to the next payment -->
             <if condition="enteringPayments.size() &gt; 0">
                 <set field="numOfBatches" from="numOfBatches + 1"/>
+                <set field="entryCount" value="0" type="Long"/>
 
                 <set field="debitBatchAmountTotal" type="BigDecimal" value="0.0"/>
                 <set field="creditBatchAmountTotal" type="BigDecimal" value="0.0"/>
@@ -1302,8 +1303,8 @@ along with this software (see the LICENSE.md file). If not, see
                     batchHeader.append("1")
                     // 80-87: Originating DFI Identification
                     batchHeader.append(nachaOdfiId)
-                    // 88-94: Batch Number (7 chars); always "0000001" since we're doing one batch per file, future: for multiple batches increment this per batch header
-                    batchHeader.append("1".padLeft(7, '0'))
+                    // 88-94: Batch Number (7 chars)
+                    batchHeader.append(numOfBatches.toString().padLeft(7, '0'))
 
                     lines.add(batchHeader)
 
@@ -1471,10 +1472,11 @@ along with this software (see the LICENSE.md file). If not, see
                         }
                     }
 
-                    routingNumberSumStr = routingNumberSum as String
-                    if (routingNumberSumStr.length() > 10)
-                        routingNumberSumStr = routingNumberSumStr.substring(routingNumberSumStr.length() - 10, routingNumberSumStr.length())
+                    def batchHashString = routingNumberSum as String
+                    if (batchHashString.length() > 10)
+                        batchHashString = batchHashString.substring(batchHashString.length() - 10, batchHashString.length())
 
+                    batchHashes.add(batchHashString)
                     debitBatchAmountTotalStr = debitBatchAmountTotal.movePointRight(2).longValueExact() as String
                     creditBatchAmountTotalStr = creditBatchAmountTotal.movePointRight(2).longValueExact() as String
 
@@ -1487,7 +1489,7 @@ along with this software (see the LICENSE.md file). If not, see
                     batchControl.append((entryCount as String).padLeft(6, '0'))
                     // 11-20: Entry hash (10 chars); sum of the 8-digit receiving DFI routing/transit numbers in entry
                     //     detail records; zero left padded, if too long trim from left
-                    batchControl.append(routingNumberSumStr.padLeft(10, '0'))
+                    batchControl.append(batchHashString.padLeft(10, '0'))
                     // 21-32: Total batch debit entry dollar amount (12 digits, std number format pattern)
                     batchControl.append(debitBatchAmountTotalStr.padLeft(12, '0'))
                     // 33-44: Total batch credit entry dollar amount (12 digits, std number format pattern)
@@ -1500,8 +1502,8 @@ along with this software (see the LICENSE.md file). If not, see
                     batchControl.append(" ".padRight(6, ' '))
                     // 80-87: Originating DFI ID
                     batchControl.append(nachaOdfiId)
-                    // 88-94: Batch Number (7 chars); same as Batch Header; always "0000001" since we're doing one batch per file
-                    batchControl.append("1".padLeft(7, '0'))
+                    // 88-94: Batch Number (7 chars); same as Batch Header
+                    batchControl.append(numOfBatches.toString().padLeft(7, '0'))
 
                     lines.add(batchControl)
 
@@ -1530,6 +1532,7 @@ along with this software (see the LICENSE.md file). If not, see
             <!-- do not generate a batch for a paymentMethodId without valid payments, skip to the next payment -->
             <if condition="leavingPayments.size() &gt; 0">
                 <set field="numOfBatches" from="numOfBatches + 1"/>
+                <set field="entryCount" value="0" type="Long"/>
 
                 <set field="debitBatchAmountTotal" type="BigDecimal" value="0.0"/>
                 <set field="creditBatchAmountTotal" type="BigDecimal" value="0.0"/>
@@ -1584,8 +1587,8 @@ along with this software (see the LICENSE.md file). If not, see
                     batchHeader.append("1")
                     // 80-87: Originating DFI Identification
                     batchHeader.append(nachaOdfiId)
-                    // 88-94: Batch Number (7 chars); always "0000001" since we're doing one batch per file, future: for multiple batches increment this per batch header
-                    batchHeader.append("1".padLeft(7, '0'))
+                    // 88-94: Batch Number (7 chars)
+                    batchHeader.append(numOfBatches.toString().padLeft(7, '0'))
 
                     lines.add(batchHeader)
 
@@ -1753,10 +1756,11 @@ along with this software (see the LICENSE.md file). If not, see
                         }
                     }
 
-                    routingNumberSumStr = routingNumberSum as String
-                    if (routingNumberSumStr.length() > 10)
-                        routingNumberSumStr = routingNumberSumStr.substring(routingNumberSumStr.length() - 10, routingNumberSumStr.length())
+                    def batchHashString = routingNumberSum as String
+                    if (batchHashString.length() > 10)
+                        batchHashString = batchHashString.substring(batchHashString.length() - 10, batchHashString.length())
 
+                    batchHashes.add(batchHashString)
                     debitBatchAmountTotalStr = debitBatchAmountTotal.movePointRight(2).longValueExact() as String
                     creditBatchAmountTotalStr = creditBatchAmountTotal.movePointRight(2).longValueExact() as String
 
@@ -1769,7 +1773,7 @@ along with this software (see the LICENSE.md file). If not, see
                     batchControl.append((entryCount as String).padLeft(6, '0'))
                     // 11-20: Entry hash (10 chars); sum of the 8-digit receiving DFI routing/transit numbers in entry
                     //     detail records; zero left padded, if too long trim from left
-                    batchControl.append(routingNumberSumStr.padLeft(10, '0'))
+                    batchControl.append(batchHashString.padLeft(10, '0'))
                     // 21-32: Total batch debit entry dollar amount (12 digits, std number format pattern)
                     batchControl.append(debitBatchAmountTotalStr.padLeft(12, '0'))
                     // 33-44: Total batch credit entry dollar amount (12 digits, std number format pattern)
@@ -1782,8 +1786,8 @@ along with this software (see the LICENSE.md file). If not, see
                     batchControl.append(" ".padRight(6, ' '))
                     // 80-87: Originating DFI ID
                     batchControl.append(nachaOdfiId)
-                    // 88-94: Batch Number (7 chars); same as Batch Header; always "0000001" since we're doing one batch per file
-                    batchControl.append("1".padLeft(7, '0'))
+                    // 88-94: Batch Number (7 chars)
+                    batchControl.append(numOfBatches.toString().padLeft(7, '0'))
 
                     lines.add(batchControl)
 
@@ -1797,6 +1801,10 @@ along with this software (see the LICENSE.md file). If not, see
             <script><![CDATA[
                 debitAmountTotalStr = debitAmountTotal.movePointRight(2).longValueExact() as String
                 creditAmountTotalStr = creditAmountTotal.movePointRight(2).longValueExact() as String
+
+                def fileHashString = (batchHashes.sum { it as long } ?: 0) as String
+                if (fileHashString.length() > 10)
+                    fileHashString = fileHashString.substring(fileHashString.length() - 10, fileHashString.length())
 
                 // File Control (9)
                 StringBuilder fileControl = new StringBuilder()
@@ -1813,9 +1821,9 @@ along with this software (see the LICENSE.md file). If not, see
                  */
                 fileControl.append(((2 + (2 * numOfBatches) + entryCount) / 10).setScale(0, BigDecimal.ROUND_UP).toPlainString().padLeft(6, '0'))
                 // 14-21: Entry/addenda record count (8 chars)
-                fileControl.append((entryCount as String).padLeft(8, '0'))
-                // 22-31: Entry hash total (10 chars); since we have 1 batch same as value in Batch Control
-                fileControl.append(routingNumberSumStr.padLeft(10, '0'))
+                fileControl.append((totalEntryCount as String).padLeft(8, '0'))
+                // 22-31: Entry hash total (10 chars); summed total of all the Batch Control hashes
+                fileControl.append(fileHashString.padLeft(10, '0'))
                 // 32-43: Total file debit entry amount (12 digits)
                 fileControl.append(debitAmountTotalStr.padLeft(12, '0'))
                 // 44-55: Total file credit entry amount (12 digits)
@@ -1847,7 +1855,7 @@ along with this software (see the LICENSE.md file). If not, see
 
             <!-- save file info on PaymentMethodFile, update statusId and set paymentMethodFileId on Payment records -->
             <service-call name="mantle.account.PaymentMethodServices.update#PaymentMethodFileComplete"
-                          in-map="context + [entryCount:entryCount, debitAmountTotal:debitAmountTotal, creditAmountTotal:creditAmountTotal]"/>
+                          in-map="context + [entryCount:totalEntryCount, debitAmountTotal:debitAmountTotal, creditAmountTotal:creditAmountTotal]"/>
 
             <if condition="produceSystemMessage">
                 <entity-find-one entity-name="mantle.account.method.PaymentMethodFileType" value-field="paymentMethodFileType">
