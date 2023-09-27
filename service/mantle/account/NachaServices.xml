@@ -12,6 +12,12 @@ You should have received a copy of the CC0 Public Domain Dedication
 along with this software (see the LICENSE.md file). If not, see
 <http://creativecommons.org/publicdomain/zero/1.0/>.
 -->
+<!--
+
+SUPER USEFUL NACHA DOCUMENTATION!!!!
+https://www.thomsonreuters.com/en-us/help/accounting-cs-client-access/direct-deposit/ach-structure-and-contents.html
+
+-->
 <services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-3.xsd">
 
     <!-- Service for export of NACHA files (see https://www.nacha.org) -->
@@ -1377,6 +1383,7 @@ along with this software (see the LICENSE.md file). If not, see
 
                         // done with validation/prep, increment entryCount and create the record
                         entryCount++
+                        totalEntryCount++
                         paymentList.add(payment)
 
                         // ec.logger.warn("routingNumber ${routingNumber} routingCheckDigit ${routingCheckDigit} accountNumber ${accountNumber}")
@@ -1410,7 +1417,7 @@ along with this software (see the LICENSE.md file). If not, see
                         entry.append("0")
                         // 80-94: Trace number (15 chars); ODFI ID, plus index (entryCount zero left padded to 7 chars)
                         entry.append(nachaOdfiId)
-                        entry.append((entryCount as String).padLeft(7, '0'))
+                        entry.append((totalEntryCount as String).padLeft(7, '0'))
 
                         lines.add(entry)
                         // FUTURE: Addenda (7) with ANSI ASC X12.4, X12.85, or other data
@@ -1440,6 +1447,7 @@ along with this software (see the LICENSE.md file). If not, see
                             if (indName.length() > 22) indName = indName.substring(0, 22)
 
                             entryCount++
+                            totalEntryCount++
 
                             // Entry Detail (6)
                             StringBuilder entry = new StringBuilder()
@@ -1466,7 +1474,7 @@ along with this software (see the LICENSE.md file). If not, see
                             entry.append("0")
                             // 80-94: Trace number (15 chars); ODFI ID, plus index (entryCount zero left padded to 7 chars)
                             entry.append(nachaOdfiId)
-                            entry.append((entryCount as String).padLeft(7, '0'))
+                            entry.append((totalEntryCount as String).padLeft(7, '0'))
 
                             lines.add(entry)
                         }
@@ -1661,6 +1669,7 @@ along with this software (see the LICENSE.md file). If not, see
 
                         // done with validation/prep, increment entryCount and create the record
                         entryCount++
+                        totalEntryCount++
                         paymentList.add(payment)
 
                         // ec.logger.warn("routingNumber ${routingNumber} routingCheckDigit ${routingCheckDigit} accountNumber ${accountNumber}")
@@ -1694,7 +1703,7 @@ along with this software (see the LICENSE.md file). If not, see
                         entry.append("0")
                         // 80-94: Trace number (15 chars); ODFI ID, plus index (entryCount zero left padded to 7 chars)
                         entry.append(nachaOdfiId)
-                        entry.append((entryCount as String).padLeft(7, '0'))
+                        entry.append((totalEntryCount as String).padLeft(7, '0'))
 
                         lines.add(entry)
                         // FUTURE: Addenda (7) with ANSI ASC X12.4, X12.85, or other data
@@ -1724,6 +1733,7 @@ along with this software (see the LICENSE.md file). If not, see
                             if (indName.length() > 22) indName = indName.substring(0, 22)
 
                             entryCount++
+                            totalEntryCount++
 
                             // Entry Detail (6)
                             StringBuilder entry = new StringBuilder()
@@ -1750,7 +1760,7 @@ along with this software (see the LICENSE.md file). If not, see
                             entry.append("0")
                             // 80-94: Trace number (15 chars); ODFI ID, plus index (entryCount zero left padded to 7 chars)
                             entry.append(nachaOdfiId)
-                            entry.append((entryCount as String).padLeft(7, '0'))
+                            entry.append((totalEntryCount as String).padLeft(7, '0'))
 
                             lines.add(entry)
                         }
@@ -1819,7 +1829,7 @@ along with this software (see the LICENSE.md file). If not, see
                  * And we have the total of entry records
                  * The result would be divided by 10 round up and we get total block count
                  */
-                fileControl.append(((2 + (2 * numOfBatches) + entryCount) / 10).setScale(0, BigDecimal.ROUND_UP).toPlainString().padLeft(6, '0'))
+                fileControl.append(((2 + (2 * numOfBatches) + totalEntryCount) / 10).setScale(0, BigDecimal.ROUND_UP).toPlainString().padLeft(6, '0'))
                 // 14-21: Entry/addenda record count (8 chars)
                 fileControl.append((totalEntryCount as String).padLeft(8, '0'))
                 // 22-31: Entry hash total (10 chars); summed total of all the Batch Control hashes
