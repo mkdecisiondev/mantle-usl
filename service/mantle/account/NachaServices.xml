@@ -12,6 +12,12 @@ You should have received a copy of the CC0 Public Domain Dedication
 along with this software (see the LICENSE.md file). If not, see
 <http://creativecommons.org/publicdomain/zero/1.0/>.
 -->
+<!--
+
+SUPER USEFUL NACHA DOCUMENTATION!!!!
+https://www.thomsonreuters.com/en-us/help/accounting-cs-client-access/direct-deposit/ach-structure-and-contents.html
+
+-->
 <services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-3.xsd">
 
     <!-- Service for export of NACHA files (see https://www.nacha.org) -->
@@ -1156,8 +1162,8 @@ along with this software (see the LICENSE.md file). If not, see
             <set field="paymentList" from="[]"/>
             <set field="debitAmountTotal" type="BigDecimal" value="0.0"/>
             <set field="creditAmountTotal" type="BigDecimal" value="0.0"/>
-            <set field="entryCount" value="0" type="Long"/>
-            <set field="routingNumberSumStr" type="String"/>
+            <set field="totalEntryCount" value="0" type="Long"/>
+            <set field="batchHashes" type="List" from="[]"/>
             <set field="debitAmountTotalStr" type="String"/>
             <set field="creditAmountTotalStr" type="String"/>
             <set field="numOfBatches" value="0" type="Long"/> <!-- expected to be 2: one for payments entering the GL and one for payments leaving the GL -->
@@ -1248,6 +1254,7 @@ along with this software (see the LICENSE.md file). If not, see
             <!-- do not generate a batch for a paymentMethodId without valid payments, skip to the next payment -->
             <if condition="enteringPayments.size() &gt; 0">
                 <set field="numOfBatches" from="numOfBatches + 1"/>
+                <set field="entryCount" value="0" type="Long"/>
 
                 <set field="debitBatchAmountTotal" type="BigDecimal" value="0.0"/>
                 <set field="creditBatchAmountTotal" type="BigDecimal" value="0.0"/>
@@ -1302,8 +1309,8 @@ along with this software (see the LICENSE.md file). If not, see
                     batchHeader.append("1")
                     // 80-87: Originating DFI Identification
                     batchHeader.append(nachaOdfiId)
-                    // 88-94: Batch Number (7 chars); always "0000001" since we're doing one batch per file, future: for multiple batches increment this per batch header
-                    batchHeader.append("1".padLeft(7, '0'))
+                    // 88-94: Batch Number (7 chars)
+                    batchHeader.append(numOfBatches.toString().padLeft(7, '0'))
 
                     lines.add(batchHeader)
 
@@ -1376,6 +1383,7 @@ along with this software (see the LICENSE.md file). If not, see
 
                         // done with validation/prep, increment entryCount and create the record
                         entryCount++
+                        totalEntryCount++
                         paymentList.add(payment)
 
                         // ec.logger.warn("routingNumber ${routingNumber} routingCheckDigit ${routingCheckDigit} accountNumber ${accountNumber}")
@@ -1409,7 +1417,7 @@ along with this software (see the LICENSE.md file). If not, see
                         entry.append("0")
                         // 80-94: Trace number (15 chars); ODFI ID, plus index (entryCount zero left padded to 7 chars)
                         entry.append(nachaOdfiId)
-                        entry.append((entryCount as String).padLeft(7, '0'))
+                        entry.append((totalEntryCount as String).padLeft(7, '0'))
 
                         lines.add(entry)
                         // FUTURE: Addenda (7) with ANSI ASC X12.4, X12.85, or other data
@@ -1439,6 +1447,7 @@ along with this software (see the LICENSE.md file). If not, see
                             if (indName.length() > 22) indName = indName.substring(0, 22)
 
                             entryCount++
+                            totalEntryCount++
 
                             // Entry Detail (6)
                             StringBuilder entry = new StringBuilder()
@@ -1465,16 +1474,17 @@ along with this software (see the LICENSE.md file). If not, see
                             entry.append("0")
                             // 80-94: Trace number (15 chars); ODFI ID, plus index (entryCount zero left padded to 7 chars)
                             entry.append(nachaOdfiId)
-                            entry.append((entryCount as String).padLeft(7, '0'))
+                            entry.append((totalEntryCount as String).padLeft(7, '0'))
 
                             lines.add(entry)
                         }
                     }
 
-                    routingNumberSumStr = routingNumberSum as String
-                    if (routingNumberSumStr.length() > 10)
-                        routingNumberSumStr = routingNumberSumStr.substring(routingNumberSumStr.length() - 10, routingNumberSumStr.length())
+                    def batchHashString = routingNumberSum as String
+                    if (batchHashString.length() > 10)
+                        batchHashString = batchHashString.substring(batchHashString.length() - 10, batchHashString.length())
 
+                    batchHashes.add(batchHashString)
                     debitBatchAmountTotalStr = debitBatchAmountTotal.movePointRight(2).longValueExact() as String
                     creditBatchAmountTotalStr = creditBatchAmountTotal.movePointRight(2).longValueExact() as String
 
@@ -1487,7 +1497,7 @@ along with this software (see the LICENSE.md file). If not, see
                     batchControl.append((entryCount as String).padLeft(6, '0'))
                     // 11-20: Entry hash (10 chars); sum of the 8-digit receiving DFI routing/transit numbers in entry
                     //     detail records; zero left padded, if too long trim from left
-                    batchControl.append(routingNumberSumStr.padLeft(10, '0'))
+                    batchControl.append(batchHashString.padLeft(10, '0'))
                     // 21-32: Total batch debit entry dollar amount (12 digits, std number format pattern)
                     batchControl.append(debitBatchAmountTotalStr.padLeft(12, '0'))
                     // 33-44: Total batch credit entry dollar amount (12 digits, std number format pattern)
@@ -1500,8 +1510,8 @@ along with this software (see the LICENSE.md file). If not, see
                     batchControl.append(" ".padRight(6, ' '))
                     // 80-87: Originating DFI ID
                     batchControl.append(nachaOdfiId)
-                    // 88-94: Batch Number (7 chars); same as Batch Header; always "0000001" since we're doing one batch per file
-                    batchControl.append("1".padLeft(7, '0'))
+                    // 88-94: Batch Number (7 chars); same as Batch Header
+                    batchControl.append(numOfBatches.toString().padLeft(7, '0'))
 
                     lines.add(batchControl)
 
@@ -1530,6 +1540,7 @@ along with this software (see the LICENSE.md file). If not, see
             <!-- do not generate a batch for a paymentMethodId without valid payments, skip to the next payment -->
             <if condition="leavingPayments.size() &gt; 0">
                 <set field="numOfBatches" from="numOfBatches + 1"/>
+                <set field="entryCount" value="0" type="Long"/>
 
                 <set field="debitBatchAmountTotal" type="BigDecimal" value="0.0"/>
                 <set field="creditBatchAmountTotal" type="BigDecimal" value="0.0"/>
@@ -1584,8 +1595,8 @@ along with this software (see the LICENSE.md file). If not, see
                     batchHeader.append("1")
                     // 80-87: Originating DFI Identification
                     batchHeader.append(nachaOdfiId)
-                    // 88-94: Batch Number (7 chars); always "0000001" since we're doing one batch per file, future: for multiple batches increment this per batch header
-                    batchHeader.append("1".padLeft(7, '0'))
+                    // 88-94: Batch Number (7 chars)
+                    batchHeader.append(numOfBatches.toString().padLeft(7, '0'))
 
                     lines.add(batchHeader)
 
@@ -1658,6 +1669,7 @@ along with this software (see the LICENSE.md file). If not, see
 
                         // done with validation/prep, increment entryCount and create the record
                         entryCount++
+                        totalEntryCount++
                         paymentList.add(payment)
 
                         // ec.logger.warn("routingNumber ${routingNumber} routingCheckDigit ${routingCheckDigit} accountNumber ${accountNumber}")
@@ -1691,7 +1703,7 @@ along with this software (see the LICENSE.md file). If not, see
                         entry.append("0")
                         // 80-94: Trace number (15 chars); ODFI ID, plus index (entryCount zero left padded to 7 chars)
                         entry.append(nachaOdfiId)
-                        entry.append((entryCount as String).padLeft(7, '0'))
+                        entry.append((totalEntryCount as String).padLeft(7, '0'))
 
                         lines.add(entry)
                         // FUTURE: Addenda (7) with ANSI ASC X12.4, X12.85, or other data
@@ -1721,6 +1733,7 @@ along with this software (see the LICENSE.md file). If not, see
                             if (indName.length() > 22) indName = indName.substring(0, 22)
 
                             entryCount++
+                            totalEntryCount++
 
                             // Entry Detail (6)
                             StringBuilder entry = new StringBuilder()
@@ -1747,16 +1760,17 @@ along with this software (see the LICENSE.md file). If not, see
                             entry.append("0")
                             // 80-94: Trace number (15 chars); ODFI ID, plus index (entryCount zero left padded to 7 chars)
                             entry.append(nachaOdfiId)
-                            entry.append((entryCount as String).padLeft(7, '0'))
+                            entry.append((totalEntryCount as String).padLeft(7, '0'))
 
                             lines.add(entry)
                         }
                     }
 
-                    routingNumberSumStr = routingNumberSum as String
-                    if (routingNumberSumStr.length() > 10)
-                        routingNumberSumStr = routingNumberSumStr.substring(routingNumberSumStr.length() - 10, routingNumberSumStr.length())
+                    def batchHashString = routingNumberSum as String
+                    if (batchHashString.length() > 10)
+                        batchHashString = batchHashString.substring(batchHashString.length() - 10, batchHashString.length())
 
+                    batchHashes.add(batchHashString)
                     debitBatchAmountTotalStr = debitBatchAmountTotal.movePointRight(2).longValueExact() as String
                     creditBatchAmountTotalStr = creditBatchAmountTotal.movePointRight(2).longValueExact() as String
 
@@ -1769,7 +1783,7 @@ along with this software (see the LICENSE.md file). If not, see
                     batchControl.append((entryCount as String).padLeft(6, '0'))
                     // 11-20: Entry hash (10 chars); sum of the 8-digit receiving DFI routing/transit numbers in entry
                     //     detail records; zero left padded, if too long trim from left
-                    batchControl.append(routingNumberSumStr.padLeft(10, '0'))
+                    batchControl.append(batchHashString.padLeft(10, '0'))
                     // 21-32: Total batch debit entry dollar amount (12 digits, std number format pattern)
                     batchControl.append(debitBatchAmountTotalStr.padLeft(12, '0'))
                     // 33-44: Total batch credit entry dollar amount (12 digits, std number format pattern)
@@ -1782,8 +1796,8 @@ along with this software (see the LICENSE.md file). If not, see
                     batchControl.append(" ".padRight(6, ' '))
                     // 80-87: Originating DFI ID
                     batchControl.append(nachaOdfiId)
-                    // 88-94: Batch Number (7 chars); same as Batch Header; always "0000001" since we're doing one batch per file
-                    batchControl.append("1".padLeft(7, '0'))
+                    // 88-94: Batch Number (7 chars)
+                    batchControl.append(numOfBatches.toString().padLeft(7, '0'))
 
                     lines.add(batchControl)
 
@@ -1798,18 +1812,28 @@ along with this software (see the LICENSE.md file). If not, see
                 debitAmountTotalStr = debitAmountTotal.movePointRight(2).longValueExact() as String
                 creditAmountTotalStr = creditAmountTotal.movePointRight(2).longValueExact() as String
 
+                def fileHashString = (batchHashes.sum { it as long } ?: 0) as String
+                if (fileHashString.length() > 10)
+                    fileHashString = fileHashString.substring(fileHashString.length() - 10, fileHashString.length())
+
                 // File Control (9)
                 StringBuilder fileControl = new StringBuilder()
                 // 01-01: Record Type Code = '9'
                 fileControl.append("9")
                 // 02-07: Batch count (6 chars)
                 fileControl.append((numOfBatches as String).padLeft(6, '0'))
-                // 08-13: Block count (6 chars); count of 10-line blocks (entries plus 2 header and 2 control records, divide by 10, round up)
-                fileControl.append(((entryCount + 4) / 10).setScale(0, BigDecimal.ROUND_UP).toPlainString().padLeft(6, '0'))
+                /**
+                 * 08-13: Block count (6 chars); Counting entryRecords + Mandatory Records
+                 * Formula: so we always have 1 file header and 1 file control record = 2
+                 * Batch header and batch control numbers would be derived from the total number of batches so it would be 2 x numOfBatches
+                 * And we have the total of entry records
+                 * The result would be divided by 10 round up and we get total block count
+                 */
+                fileControl.append(((2 + (2 * numOfBatches) + totalEntryCount) / 10).setScale(0, BigDecimal.ROUND_UP).toPlainString().padLeft(6, '0'))
                 // 14-21: Entry/addenda record count (8 chars)
-                fileControl.append((entryCount as String).padLeft(8, '0'))
-                // 22-31: Entry hash total (10 chars); since we have 1 batch same as value in Batch Control
-                fileControl.append(routingNumberSumStr.padLeft(10, '0'))
+                fileControl.append((totalEntryCount as String).padLeft(8, '0'))
+                // 22-31: Entry hash total (10 chars); summed total of all the Batch Control hashes
+                fileControl.append(fileHashString.padLeft(10, '0'))
                 // 32-43: Total file debit entry amount (12 digits)
                 fileControl.append(debitAmountTotalStr.padLeft(12, '0'))
                 // 44-55: Total file credit entry amount (12 digits)
@@ -1841,7 +1865,7 @@ along with this software (see the LICENSE.md file). If not, see
 
             <!-- save file info on PaymentMethodFile, update statusId and set paymentMethodFileId on Payment records -->
             <service-call name="mantle.account.PaymentMethodServices.update#PaymentMethodFileComplete"
-                          in-map="context + [entryCount:entryCount, debitAmountTotal:debitAmountTotal, creditAmountTotal:creditAmountTotal]"/>
+                          in-map="context + [entryCount:totalEntryCount, debitAmountTotal:debitAmountTotal, creditAmountTotal:creditAmountTotal]"/>
 
             <if condition="produceSystemMessage">
                 <entity-find-one entity-name="mantle.account.method.PaymentMethodFileType" value-field="paymentMethodFileType">
