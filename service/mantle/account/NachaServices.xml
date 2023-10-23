@@ -1339,11 +1339,6 @@ https://www.thomsonreuters.com/en-us/help/accounting-cs-client-access/direct-dep
                             ec.message.addMessage(ec.resource.expand('Routing Number is not 9 characters on Bank Account for payment method ${pmtPaymentMethodId} on payment ${payment.paymentId}',''), "danger")
                             continue
                         }
-                        // calculate routing number check digit
-                        String routingCheckDigit = getRoutingCheckDigit(routingNumber)
-                        // add first 8 digits of routingNumber to routingNumberSum
-                        routingNumberSum += (routingNumber.substring(0, 8) as long)
-
                         // check/trim the account number
                         String accountNumber = pmtBankAccount.accountNumber
                         if (!accountNumber) {
@@ -1362,6 +1357,12 @@ https://www.thomsonreuters.com/en-us/help/accounting-cs-client-access/direct-dep
                             ec.message.addMessage(ec.resource.expand('Amount ${payment.amount.toPlainString()} is too big for NACHA transactions on payment ${payment.paymentId}',''), "danger")
                             continue
                         }
+
+                        // calculate routing number check digit
+                        String routingCheckDigit = getRoutingCheckDigit(routingNumber)
+                        // add first 8 digits of routingNumber to routingNumberSum
+                        routingNumberSum += (routingNumber.substring(0, 8) as long)
+
                         // add to debitAmountTotal or creditAmountTotal
                         if (outgoing) creditBatchAmountTotal += payment.amount else debitBatchAmountTotal += payment.amount
 
@@ -1625,11 +1626,6 @@ https://www.thomsonreuters.com/en-us/help/accounting-cs-client-access/direct-dep
                             ec.message.addMessage(ec.resource.expand('Routing Number is not 9 characters on Bank Account for payment method ${pmtPaymentMethodId} on payment ${payment.paymentId}',''), "danger")
                             continue
                         }
-                        // calculate routing number check digit
-                        String routingCheckDigit = getRoutingCheckDigit(routingNumber)
-                        // add first 8 digits of routingNumber to routingNumberSum
-                        routingNumberSum += (routingNumber.substring(0, 8) as long)
-
                         // check/trim the account number
                         String accountNumber = pmtBankAccount.accountNumber
                         if (!accountNumber) {
@@ -1648,6 +1644,12 @@ https://www.thomsonreuters.com/en-us/help/accounting-cs-client-access/direct-dep
                             ec.message.addMessage(ec.resource.expand('Amount ${payment.amount.toPlainString()} is too big for NACHA transactions on payment ${payment.paymentId}',''), "danger")
                             continue
                         }
+
+                        // calculate routing number check digit
+                        String routingCheckDigit = getRoutingCheckDigit(routingNumber)
+                        // add first 8 digits of routingNumber to routingNumberSum
+                        routingNumberSum += (routingNumber.substring(0, 8) as long)
+
                         // add to debitBatchAmountTotal or creditBatchAmountTotal
                         if (outgoing) creditBatchAmountTotal += payment.amount else debitBatchAmountTotal += payment.amount
 
