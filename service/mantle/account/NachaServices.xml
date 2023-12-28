@@ -1120,6 +1120,7 @@ https://www.thomsonreuters.com/en-us/help/accounting-cs-client-access/direct-dep
                 </econditions>
                 <econdition field-name="paymentInstrumentEnumId" value="PiAch"/>
                 <econdition field-name="paymentMethodFileId" from="null"/>
+                <econdition field-name="paymentGatewayConfigId" operator="is-null"/>
                 <econdition field-name="effectiveDate" operator="greater-equals" from="fromDate" ignore-if-empty="true"/>
                 <econdition field-name="effectiveDate" operator="less-equals" from="thruDate"/>
                 <order-by field-name="effectiveDate"/>
@@ -1246,6 +1247,7 @@ https://www.thomsonreuters.com/en-us/help/accounting-cs-client-access/direct-dep
                 </econditions>
                 <econdition field-name="paymentInstrumentEnumId" value="PiAch"/>
                 <econdition field-name="paymentMethodFileId" from="null"/>
+                <econdition field-name="paymentGatewayConfigId" operator="is-null"/>
                 <econdition field-name="effectiveDate" operator="greater-equals" from="fromDate" ignore-if-empty="true"/>
                 <econdition field-name="effectiveDate" operator="less-equals" from="thruDate"/>
                 <order-by field-name="effectiveDate"/>
@@ -1533,6 +1535,7 @@ https://www.thomsonreuters.com/en-us/help/accounting-cs-client-access/direct-dep
                 </econditions>
                 <econdition field-name="paymentInstrumentEnumId" value="PiAch"/>
                 <econdition field-name="paymentMethodFileId" from="null"/>
+                <econdition field-name="paymentGatewayConfigId" operator="is-null"/>
                 <econdition field-name="effectiveDate" operator="greater-equals" from="fromDate" ignore-if-empty="true"/>
                 <econdition field-name="effectiveDate" operator="less-equals" from="thruDate"/>
                 <order-by field-name="effectiveDate"/>
