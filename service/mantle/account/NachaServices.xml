@@ -1078,6 +1078,9 @@ https://www.thomsonreuters.com/en-us/help/accounting-cs-client-access/direct-dep
             <parameter name="addOffsetRecord" type="Boolean">
                 <description>Add a single offset record to create a 'balanced' NACHA file; defaults to BankAccount.nachaAddOffsetRecord (Y/N) or 'false'</description></parameter>
             <parameter name="produceSystemMessage" type="Boolean" default="false"/>
+            <parameter name="lineEndingType">
+                <description>The line ending type to be used after the end of 94 characters</description>
+            </parameter>
         </in-parameters>
         <out-parameters>
             <parameter name="paymentMethodFileId"/>
@@ -1857,7 +1860,10 @@ https://www.thomsonreuters.com/en-us/help/accounting-cs-client-access/direct-dep
                 for (StringBuilder line in lines) {
                     if (line.length() != 94) ec.message.addError(ec.resource.expand('Generated line does not have exactly 94 chars: ${line}','',[line:line]))
                     ftSb.append(line)
-                    if (addNewLine) ftSb.append('\n')
+                    if (addNewLine) {
+                         if (lineEndingType == "Windows") ftSb.append('\r\n')
+                         else ftSb.append('\n')
+                    }
                 }
                 // get the String value
                 fileText = ftSb.toString()
