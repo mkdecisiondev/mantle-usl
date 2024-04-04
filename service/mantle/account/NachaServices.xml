@@ -53,6 +53,8 @@ https://www.thomsonreuters.com/en-us/help/accounting-cs-client-access/direct-dep
 
             <!-- check if the bank account is a general ledger account -->
             <set field="isBatGeneralLedger" from="bankAccount?.typeEnumId == 'BatGeneralLedger'" type="Boolean"/>
+            <!-- check if the clearing account is a general ledger account -->
+            <set field="isClearingAccountGeneralLedger" from="paymentMethod?.bankAccount?.typeEnumId == 'BatGeneralLedger'"/>
 
             <if condition="addNewLine == null"><set field="addNewLine" from="!'N'.equals(bankAccount.nachaAddNewLine)"/></if>
             <if condition="addOffsetRecord == null"><set field="addOffsetRecord" from="'Y'.equals(bankAccount.nachaAddOffsetRecord)"/></if>
@@ -367,8 +369,8 @@ https://www.thomsonreuters.com/en-us/help/accounting-cs-client-access/direct-dep
                         entry.append("6")
                         // 02-03: Transaction Code: checking/etc credit '22', debit '27'; savings credit '32', debit '37', general ledger '42'
                         // if this is a net debit, create a credit; otherwise create a debit
-                        if (isBatGeneralLedger) { entry.append(isNetDebit ? "42" : "47") }
-                        else { entry.append(isNetDebit ? "22" : "27") }
+                        if (isClearingAccountGeneralLedger) { entry.append(isNetDebit ? "42" : "47") }
+                        else {entry.append(isNetDebit ? "22" : "27")}
                         // 04-11: Receiving DFI R/T number (8 digits)
                         entry.append(routingNumber.substring(0, 8))
                         // 12-12: R/T number check digit
@@ -928,8 +930,8 @@ https://www.thomsonreuters.com/en-us/help/accounting-cs-client-access/direct-dep
                             entry.append("6")
                             // 02-03: Transaction Code: checking/etc credit '22', debit '27'; savings credit '32', debit '37'
                             // if this is a net debit, create a credit; otherwise create a debit
-                            if (isBatGeneralLedger) { entry.append(isNetDebit ? "42" : "47") }
-                            else { entry.append(isNetDebit ? "22" : "27") }
+                            if (isClearingAccountGeneralLedger) { entry.append(isNetDebit ? "42" : "47") }
+                            else {entry.append(isNetDebit ? "22" : "27")}
                             // 04-11: Receiving DFI R/T number (8 digits)
                             entry.append(routingNumber.substring(0, 8))
                             // 12-12: R/T number check digit
@@ -1227,6 +1229,11 @@ https://www.thomsonreuters.com/en-us/help/accounting-cs-client-access/direct-dep
 
             <!-- check if the bank account is a general ledger account -->
             <set field="isBatGeneralLedger" from="bankAccount?.typeEnumId == 'BatGeneralLedger'" type="Boolean"/>
+            <!-- get the SEC code for debit & credit batch -->
+            <set field="nachaDebitSecCode" from="bankAccount?.nachaDebitSecCode ?: 'WEB'"/>
+            <set field="nachaCreditSecCode" from="bankAccount?.nachaCreditSecCode ?: 'WEB'"/>
+            <!-- check if the clearing account is a general ledger account -->
+            <set field="isClearingAccountGeneralLedger" from="paymentMethod?.bankAccount?.typeEnumId == 'BatGeneralLedger'"/>
 
             <if condition="addNewLine == null"><set field="addNewLine" from="!'N'.equals(bankAccount.nachaAddNewLine)"/></if>
             <if condition="addOffsetRecord == null"><set field="addOffsetRecord" from="'Y'.equals(bankAccount.nachaAddOffsetRecord)"/></if>
@@ -1301,7 +1308,7 @@ https://www.thomsonreuters.com/en-us/help/accounting-cs-client-access/direct-dep
                     // 41-50: Company ID
                     batchHeader.append(bankAccount.nachaCompanyId.toUpperCase().padRight(10, ' '))
                     // 51-53: Standard Entry Class Code: for now alkami always uses WEB
-                    batchHeader.append("WEB")
+                    batchHeader.append(nachaDebitSecCode)
                     // 54-63: Company Entry Description (for receiver's bank account, 10 chars)
                     batchHeader.append(batchNachaEntryDescription.toUpperCase().padRight(10, ' '))
                     // 64-69: Company Descriptive Date (6 chars); note that this is informational and optional
@@ -1460,7 +1467,8 @@ https://www.thomsonreuters.com/en-us/help/accounting-cs-client-access/direct-dep
                             entry.append("6")
                             // 02-03: Transaction Codes from and to a FI's general ledger should be credit '42', debit '47'
                             // if this offset record is a net debit, create a credit; otherwise create a debit
-                            entry.append(isNetDebit ? "42" : "47")
+                            if (isClearingAccountGeneralLedger) { entry.append(isNetDebit ? "42" : "47") }
+                            else {entry.append(isNetDebit ? "22" : "27")}
                             // 04-11: Receiving DFI R/T number (8 digits)
                             entry.append(routingNumber.substring(0, 8))
                             // 12-12: R/T number check digit
@@ -1588,7 +1596,7 @@ https://www.thomsonreuters.com/en-us/help/accounting-cs-client-access/direct-dep
                     // 41-50: Company ID
                     batchHeader.append(bankAccount.nachaCompanyId.toUpperCase().padRight(10, ' '))
                     // 51-53: Standard Entry Class Code: for now alkami always uses WEB
-                    batchHeader.append("WEB")
+                    batchHeader.append(nachaCreditSecCode)
                     // 54-63: Company Entry Description (for receiver's bank account, 10 chars)
                     batchHeader.append(batchNachaEntryDescription.toUpperCase().padRight(10, ' '))
                     // 64-69: Company Descriptive Date (6 chars); note that this is informational and optional
@@ -1747,7 +1755,8 @@ https://www.thomsonreuters.com/en-us/help/accounting-cs-client-access/direct-dep
                             entry.append("6")
                             // 02-03: Transaction Codes from and to a FI's general ledger should be credit '42', debit '47'
                             // if this offset record is a net debit, create a credit; otherwise create a debit
-                            entry.append(isNetDebit ? "42" : "47")
+                            if (isClearingAccountGeneralLedger) { entry.append(isNetDebit ? "42" : "47") }
+                            else {entry.append(isNetDebit ? "22" : "27")}
                             // 04-11: Receiving DFI R/T number (8 digits)
                             entry.append(routingNumber.substring(0, 8))
                             // 12-12: R/T number check digit
