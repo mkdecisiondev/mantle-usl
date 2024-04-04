@@ -1307,7 +1307,7 @@ https://www.thomsonreuters.com/en-us/help/accounting-cs-client-access/direct-dep
                     batchHeader.append(nachaDiscrData.toUpperCase().padRight(20, ' '))
                     // 41-50: Company ID
                     batchHeader.append(bankAccount.nachaCompanyId.toUpperCase().padRight(10, ' '))
-                    // 51-53: Standard Entry Class Code: for now alkami always uses WEB
+                    // 51-53: Standard Entry Class Code: the default is WEB
                     batchHeader.append(nachaDebitSecCode)
                     // 54-63: Company Entry Description (for receiver's bank account, 10 chars)
                     batchHeader.append(batchNachaEntryDescription.toUpperCase().padRight(10, ' '))
@@ -1595,7 +1595,7 @@ https://www.thomsonreuters.com/en-us/help/accounting-cs-client-access/direct-dep
                     batchHeader.append(nachaDiscrData.toUpperCase().padRight(20, ' '))
                     // 41-50: Company ID
                     batchHeader.append(bankAccount.nachaCompanyId.toUpperCase().padRight(10, ' '))
-                    // 51-53: Standard Entry Class Code: for now alkami always uses WEB
+                    // 51-53: Standard Entry Class Code: the default is WEB
                     batchHeader.append(nachaCreditSecCode)
                     // 54-63: Company Entry Description (for receiver's bank account, 10 chars)
                     batchHeader.append(batchNachaEntryDescription.toUpperCase().padRight(10, ' '))
