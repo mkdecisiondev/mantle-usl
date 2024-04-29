@@ -1061,7 +1061,7 @@ https://www.thomsonreuters.com/en-us/help/accounting-cs-client-access/direct-dep
             </if>
         </actions>
     </service>
-    <service verb="generate" noun="NachaFileWithCreditAndDebitBatches">
+    <service verb="generate" noun="NachaFileWithCreditAndDebitBatches" authenticate="anonymous-all">
         <in-parameters>
             <parameter name="paymentMethodId" required="true"/>
             <parameter name="fromDate" type="Timestamp"><description>If null no limit on look back</description></parameter>
@@ -1080,9 +1080,6 @@ https://www.thomsonreuters.com/en-us/help/accounting-cs-client-access/direct-dep
             <parameter name="addOffsetRecord" type="Boolean">
                 <description>Add a single offset record to create a 'balanced' NACHA file; defaults to BankAccount.nachaAddOffsetRecord (Y/N) or 'false'</description></parameter>
             <parameter name="produceSystemMessage" type="Boolean" default="false"/>
-            <parameter name="lineEndingType">
-                <description>The line ending type to be used after the end of 94 characters</description>
-            </parameter>
         </in-parameters>
         <out-parameters>
             <parameter name="paymentMethodFileId"/>
@@ -1236,6 +1233,7 @@ https://www.thomsonreuters.com/en-us/help/accounting-cs-client-access/direct-dep
             <set field="isClearingAccountGeneralLedger" from="paymentMethod?.bankAccount?.typeEnumId == 'BatGeneralLedger'"/>
 
             <if condition="addNewLine == null"><set field="addNewLine" from="!'N'.equals(bankAccount.nachaAddNewLine)"/></if>
+            <set field="lineEndingType" from="bankAccount?.nachaNewLineEnding ?: 'NleUnix'"/>
             <if condition="addOffsetRecord == null"><set field="addOffsetRecord" from="'Y'.equals(bankAccount.nachaAddOffsetRecord)"/></if>
             <if condition="addOffsetRecord">
                 <!-- if adding offset record check bankAccount's routingNumber and accountNumber -->
@@ -1870,7 +1868,7 @@ https://www.thomsonreuters.com/en-us/help/accounting-cs-client-access/direct-dep
                     if (line.length() != 94) ec.message.addError(ec.resource.expand('Generated line does not have exactly 94 chars: ${line}','',[line:line]))
                     ftSb.append(line)
                     if (addNewLine) {
-                         if (lineEndingType == "Windows") ftSb.append('\r\n')
+                         if (lineEndingType == "NleWindows") ftSb.append('\r\n')
                          else ftSb.append('\n')
                     }
                 }
